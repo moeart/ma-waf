@@ -38,7 +38,8 @@ local _M = {
         "useragent.rule",
         "whiteip.rule",
         "whiteUrl.rule",
-        "Referer.rule"
+        "Referer.rule",
+        "Header.rule"
     }
 }
 

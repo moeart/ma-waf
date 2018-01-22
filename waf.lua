@@ -49,6 +49,29 @@ function _M.get_rule(rule_file_name)
     return _M.RULES[rule_file_name]
 end
 
+-- deny header(ScanTools)
+function _M.header_check()
+    if config.config_header_check == "on" then
+        local Header_RULES = _M.get_rule('Header.rule')
+        local HEADER_VALUES = ngx.req.get_headers()
+        for HeaderName, HeaderValue in pairs(HEADER_VALUES) do
+          -- ngx.log(ngx.DEBUG, HEADER_VALUES)
+          -- ngx.say("check : ", HeaderName," : ",HeaderValue,"</br>")
+          for _, rule in pairs(Header_RULES) do
+              -- ngx.say("match : ", HeaderName," : ",rule,"</br>")
+              if rule ~= "" and rulematch(HeaderName, rule, "ijo") then
+                  util.log_record(config.config_log_dir,'Deny_Header', ngx.var.request_uri, HeaderName, rule)
+                  if config.config_waf_enable == "on" then
+                      util.waf_output()
+                      return true
+                  end
+              end
+          end
+        end
+    end
+    return false
+end
+
 -- deny referer
 function _M.referer_check()
     if config.config_referer_check == "on" then
@@ -307,14 +330,15 @@ end
 function _M.check()
     if _M.white_ip_check() then
     elseif _M.black_ip_check() then
+    elseif _M.header_check() then
     elseif _M.user_agent_attack_check() then
+    elseif _M.referer_check() then
     elseif _M.white_url_check() then
     elseif _M.url_attack_check() then
     elseif _M.cc_attack_check() then
     elseif _M.cookie_attack_check() then
     elseif _M.url_args_attack_check() then
     elseif _M.post_attack_check() then
-    elseif _M.referer_check() then
     else
         return
     end

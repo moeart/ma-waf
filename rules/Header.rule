@@ -1,0 +1,1 @@
+[{"Id":76,"RuleType":"Header","RuleItem":"(Acunetix-Aspect|Acunetix-Aspect-Password|Acunetix-Aspect-Queries|X-WIPP|X-RequestManager-Memo|X-Request-Memo|X-Scan-Memo)"}]
