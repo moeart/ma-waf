@@ -291,25 +291,40 @@ function _M.post_attack_check()
     if config.config_post_check == "on" then
         ngx.req.read_body()
         local POST_RULES = _M.get_rule('post.rule')
-        for _, rule in pairs(POST_RULES) do
-            local POST_ARGS = ngx.req.get_post_args() or {}
-            for k, v in pairs(POST_ARGS) do
-                local post_data = ""
-                if type(v) == "table" then
-                    post_data = table.concat(v, ", ")
-                else
-                    if type(v) == "boolean" then
-                        post_data = k -- 检查Json类型数据,原来这里是个bug
-                    else
-                        post_data = v
-                    end
+        local REQ_METHOD = ngx.req.get_method()
+        local REQ_QUERY = nil
+        
+        -- get query string
+        if REQ_METHOD == "GET" then
+            REQ_QUERY = ngx.var.query_string
+        else
+            local content_type = ngx.req.get_headers()["content-type"]
+            if content_type ~= nil and string.sub(content_type,1,16) == "application/json" then
+                REQ_METHOD = "JSON"
+                ngx.req.read_body()
+                REQ_QUERY = ngx.req.get_body_data()
+            elseif REQ_METHOD == "POST" or REQ_METHOD == "PUT" then
+                if content_type ~= nil and string.sub(content_type,1,33) == "application/x-www-form-urlencoded" then
+                    ngx.req.read_body()
+                    REQ_QUERY = ngx.encode_args(ngx.req.get_post_args())
+                elseif content_type ~= nil then
+                    REQ_METHOD = "POST_RAW"
+                    ngx.req.read_body()
+                    REQ_QUERY = ngx.req.get_body_data()
                 end
-                if rule ~= "" and rulematch(post_data, rule, "jo") then
-                    util.log_record(config.config_log_dir,'Deny_USER_POST_DATA', post_data, "-", rule)
-                    if config.config_waf_enable == "on" then
-                        util.waf_output()
-                        return true
-                    end
+            end
+        end
+        
+        -- do url-deocding all string
+        REQ_QUERY = unescape(REQ_QUERY)
+        
+        -- matching and filtering from rule list
+        for _, rule in pairs(POST_RULES) do
+            if rule ~= "" and rulematch(REQ_QUERY, rule, "jo") then
+                util.log_record(config.config_log_dir,'Deny_USER_POST_DATA', REQ_QUERY, "-", rule)
+                if config.config_waf_enable == "on" then
+                    util.waf_output()
+                    return true
                 end
             end
         end
