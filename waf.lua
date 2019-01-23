@@ -79,7 +79,7 @@ function _M.referer_check()
         local Referer = ngx.var.http_referer
         if Referer ~= nil then
             for _, rule in pairs(Referer_RULES) do
-                if rule ~= "" and rulematch(Referer, rule, "jo") then
+                if rule ~= "" and rulematch(Referer, rule, "ijo") then
                     util.log_record(config.config_log_dir,'Deny_Referer', ngx.var.request_uri, Referer, rule)
                     if config.config_waf_enable == "on" then
                         util.waf_output()
@@ -148,7 +148,7 @@ function _M.white_url_check()
         local REQ_URI = ngx.var.request_uri
         if URL_WHITE_RULES ~= nil then
             for _,rule in pairs(URL_WHITE_RULES) do
-                if rule ~= "" and rulematch(REQ_URI, rule, "jo") then
+                if rule ~= "" and rulematch(REQ_URI, rule, "ijo") then
                     return true
                 end
             end
@@ -226,7 +226,7 @@ function _M.url_attack_check()
         local URL_RULES = _M.get_rule('system/url.rule')
         local REQ_URI = ngx.var.request_uri
         for _,rule in pairs(URL_RULES) do
-            if rule ~="" and rulematch(REQ_URI,rule,"jo") then
+            if rule ~="" and rulematch(REQ_URI,rule,"ijo") then
                 util.log_record(config.config_log_dir,'Deny_URL', REQ_URI, "-", rule)
                 if config.config_waf_enable == "on" then
                     util.waf_output()
@@ -253,7 +253,7 @@ function _M.url_args_attack_check()
                 else
                     ARGS_DATA = val
                 end
-                if ARGS_DATA and type(ARGS_DATA) ~= "boolean" and rule ~="" and rulematch(unescape(ARGS_DATA), rule, "jo") then
+                if ARGS_DATA and type(ARGS_DATA) ~= "boolean" and rule ~="" and rulematch(unescape(ARGS_DATA), rule, "ijo") then
                     util.log_record(config.config_log_dir,'Deny_URL_Args', ngx.var.request_uri, "-", rule)
                     if config.config_waf_enable == "on" then
                         util.waf_output()
@@ -320,7 +320,7 @@ function _M.post_attack_check()
         
         -- matching and filtering from rule list
         for _, rule in pairs(POST_RULES) do
-            if rule ~= "" and rulematch(REQ_QUERY, rule, "jo") then
+            if rule ~= "" and rulematch(REQ_QUERY, rule, "ijo") then
                 util.log_record(config.config_log_dir,'Deny_USER_POST_DATA', REQ_QUERY, "-", rule)
                 if config.config_waf_enable == "on" then
                     util.waf_output()
