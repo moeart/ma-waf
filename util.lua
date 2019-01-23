@@ -29,17 +29,17 @@ local _M = {
     version = "0.1",
     RULE_TABLE = {},
     RULE_FILES = {
-        "args.rule",
+        "system/args.rule",
+        "system/cookie.rule",
+        "system/post.rule",
+        "system/url.rule",
+        "system/useragent.rule",
+        "system/referer.rule",
+        "system/header.rule",
         "blackip.rule",
-        "cookie.rule",
-        "cc_ua_ipurl.rule",
-        "post.rule",
-        "url.rule",
-        "useragent.rule",
+        "useragentforcc.rule",
         "whiteip.rule",
-        "whiteUrl.rule",
-        "Referer.rule",
-        "Header.rule"
+        "whiteurl.rule"
     }
 }
 

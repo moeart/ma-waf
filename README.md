@@ -1,4 +1,26 @@
-# X-WAF 萌绘图站定制版
+# X-WAF 萌绘图站专版
+
+## 萌绘图站专版额外说明文档
+
+* 先按原版文档安装
+* 从 /rules/sample 拷贝规则样本到 /rules
+* 重启 nginx 完成安装
+* 更新规则库直接 git pull
+
+本版本由萌绘图站开发组进行维护，禁止转卖。    
+如需从本版本二次开发，请在 README 中注明出处！
+
+### 致谢
+
+1. 感谢春哥开源的[openresty](https://openresty.org)
+1. 感谢unixhot开源的[waf](https://github.com/unixhot/waf)
+1. 感谢无闻开源的[macron](https://go-macaron.com/)和[peach](https://peachdocs.org/)
+1. 感谢lunny开源的[xorm](https://github.com/go-xorm/xorm)
+1. 感谢小米安全团队开源的[x-waf](https://waf.xsec.io/)
+1. 感谢hamishforbes开源的[iputils](https://github.com/hamishforbes/lua-resty-iputils)
+
+
+## 以下为 X-WAF 原版说明文档
 
 X-WAF是一款适用中、小企业的云WAF系统，让中、小企业也可以非常方便地拥有自己的免费云WAF。
 
@@ -80,12 +102,4 @@ go get github.com/xsec-lab/x-waf-admin
 * 从github中下载最新的版本
 * 执行go build server.go编译出二进制版本，然后将server、conf、publib和templates目录一起打包上传到服务器中即可运行。
 
-## 致谢
-
-1. 感谢春哥开源的[openresty](https://openresty.org)
-1. 感谢unixhot开源的[waf](https://github.com/unixhot/waf)
-1. 感谢无闻开源的[macron](https://go-macaron.com/)和[peach](https://peachdocs.org/)
-1. 感谢lunny开源的[xorm](https://github.com/go-xorm/xorm)
-1. 感谢小米安全团队开源的[x-waf](https://waf.xsec.io/)
-1. 感谢hamishforbes开源的[iputils](https://github.com/hamishforbes/lua-resty-iputils)
 

@@ -1,5 +1,2 @@
 config.lua
-/rules/blackip.rule
-/rules/cc_ua_ipurl.rule
-/rules/whiteip.rule
-/rules/whiteUrl.rule
+/rules/*.rule
