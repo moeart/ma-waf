@@ -54,7 +54,7 @@ local _M = {
     -- cc rate for ip mode the xxx of xxx seconds
     config_cc_rate_ip = "150/60",
     -- cc rate for ip+url mode the xxx of xxx seconds
-    config_cc_rate_ipurl = "10/60",
+    config_cc_rate_ipurl = "20/60",
     -- enable/disable post filtering
     config_post_check = "on",
     -- config waf output reset/redirect/html/jinghuashuiyue
