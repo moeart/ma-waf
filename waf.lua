@@ -52,7 +52,7 @@ end
 -- deny header(ScanTools)
 function _M.header_check()
     if config.config_header_check == "on" then
-        local Header_RULES = _M.get_rule('Header.rule')
+        local Header_RULES = _M.get_rule('system/header.rule')
         local HEADER_VALUES = ngx.req.get_headers()
         for HeaderName, HeaderValue in pairs(HEADER_VALUES) do
           -- ngx.log(ngx.DEBUG, HEADER_VALUES)
@@ -75,7 +75,7 @@ end
 -- deny referer
 function _M.referer_check()
     if config.config_referer_check == "on" then
-        local Referer_RULES = _M.get_rule('Referer.rule')
+        local Referer_RULES = _M.get_rule('system/referer.rule')
         local Referer = ngx.var.http_referer
         if Referer ~= nil then
             for _, rule in pairs(Referer_RULES) do
@@ -162,7 +162,7 @@ function _M.cc_attack_check()
         local ATTACK_URI = ngx.var.uri
         -- check ua whitelist
         -- if in whitelist then use ip+url only
-        local USER_AGENT_RULES = _M.get_rule('cc_ua_ipurl.rule')
+        local USER_AGENT_RULES = _M.get_rule('useragentforcc.rule')
         local USER_AGENT = ngx.var.http_user_agent
         local USER_AGENT_WHITE = false
         if USER_AGENT ~= nil then
@@ -203,7 +203,7 @@ end
 -- deny cookie
 function _M.cookie_attack_check()
     if config.config_cookie_check == "on" then
-        local COOKIE_RULES = _M.get_rule('cookie.rule')
+        local COOKIE_RULES = _M.get_rule('system/cookie.rule')
         local USER_COOKIE = ngx.var.http_cookie
         if USER_COOKIE ~= nil then
             for _, rule in pairs(COOKIE_RULES) do
@@ -223,7 +223,7 @@ end
 -- deny url
 function _M.url_attack_check()
     if config.config_url_check == "on" then
-        local URL_RULES = _M.get_rule('url.rule')
+        local URL_RULES = _M.get_rule('system/url.rule')
         local REQ_URI = ngx.var.request_uri
         for _,rule in pairs(URL_RULES) do
             if rule ~="" and rulematch(REQ_URI,rule,"jo") then
@@ -241,7 +241,7 @@ end
 -- deny url args
 function _M.url_args_attack_check()
     if config.config_url_args_check == "on" then
-        local ARGS_RULES = _M.get_rule('args.rule')
+        local ARGS_RULES = _M.get_rule('system/args.rule')
         for _,rule in pairs(ARGS_RULES) do
             local REQ_ARGS = ngx.req.get_uri_args()
             for key, val in pairs(REQ_ARGS) do
@@ -269,7 +269,7 @@ end
 -- deny user agent
 function _M.user_agent_attack_check()
     if config.config_user_agent_check == "on" then
-        local USER_AGENT_RULES = _M.get_rule('useragent.rule')
+        local USER_AGENT_RULES = _M.get_rule('system/useragent.rule')
         local USER_AGENT = ngx.var.http_user_agent
         if USER_AGENT ~= nil then
             for _, rule in pairs(USER_AGENT_RULES) do
@@ -290,7 +290,7 @@ end
 function _M.post_attack_check()
     if config.config_post_check == "on" then
         ngx.req.read_body()
-        local POST_RULES = _M.get_rule('post.rule')
+        local POST_RULES = _M.get_rule('system/post.rule')
         local REQ_METHOD = ngx.req.get_method()
         local REQ_QUERY = nil
         
