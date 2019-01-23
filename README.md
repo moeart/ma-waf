@@ -3,7 +3,10 @@
 ## 萌绘图站专版额外说明文档
 
 * 先按原版文档安装
+* 从 /config.lua.sample 拷贝到 /config.lua
+* 修改 config.lua 配置文件
 * 从 /rules/sample 拷贝规则样本到 /rules
+* 修改规则文件
 * 重启 nginx 完成安装
 * 更新规则库直接 git pull
 
