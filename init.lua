@@ -21,4 +21,7 @@ THE SOFTWARE.
 ]]
 
 waf = require("waf")
+-- utiltest = require("util")
 waf_rules = waf.load_rules()
+-- 系统记录初始化
+waf.system_share_info_init()

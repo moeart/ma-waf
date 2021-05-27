@@ -76,6 +76,14 @@ local _M = {
       ______________________________________________________________
                                           萌绘图站 - www.acgdraw.com
     ]],
+    -- security setting
+    -- 防火墙部署主机与管理平台所在主机系统时间差不得超过10分钟
+    -- 安全加密token
+    firewall_security_token = "security_token_default",
+    -- 自定义编码表
+    firewall_security_table = "Zabcdef6789GHIJKLtuvDEFMNOPQRS01234YghijklXmnoBCTUVAWpqrswxyz5+/",
+    -- firewall_security_table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/",
+    -- security end
 }
 
 return _M

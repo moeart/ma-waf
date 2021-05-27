@@ -26,10 +26,123 @@ local unescape = ngx.unescape_uri
 local config = require("config")
 local util = require("util")
 local iputils = require("iputils")
+local cjson = require("cjson.safe")
 
 local _M = {
     RULES = {}
 }
+
+-- 系统记录初始化
+system_info = ngx.shared.system_info
+function _M.system_share_info_init()
+    --local system_info = ngx.shared.system_info
+    -- 读取标记位，防止 reload 时重新初始化共享区，导致统计数据丢失
+    local system_init_status, _ = system_info:get("firewall_init")
+    if system_init_status then -- 已初始化
+        system_info:incr("firewall_reload_count",1)
+    else
+        -- 未初始化，进行初始化操作
+        system_info:set("firewall_init",true)
+        -- 初始化系统状态记录
+        -- good
+        system_info:set("firewall_req_total",0)      -- 0.请求总数
+        system_info:set("firewall_req_normal",0)     -- 1.正常请求总数
+        system_info:set("firewall_req_white_ip",0)   -- 2.白名单 IP 命中数
+        system_info:set("firewall_req_white_url",0)  -- 3.白名单 URL 命中数
+
+        -- bad
+        system_info:set("firewall_req_attack",0)     -- 4.攻击请求总数
+        system_info:set("firewall_req_black_ip",0)   -- 5.黑名单 IP 命中数
+        system_info:set("firewall_req_header",0)     -- 6.规则 Header 命中数量 
+        system_info:set("firewall_req_referer",0)    -- 7.规则 Referer 命中数量
+        system_info:set("firewall_req_cc",0)         -- 8.规则 CC 命中数量
+        system_info:set("firewall_req_cookie",0)     -- 9.规则 Cookie 命中数量
+        system_info:set("firewall_req_url",0)        -- 10.规则 URL 命中数量
+        system_info:set("firewall_req_url_args",0)   -- 11.规则 URL 参数 命中数量
+        system_info:set("firewall_req_ua",0)         -- 12.规则 UA 命中数量
+        system_info:set("firewall_req_post",0)       -- 13.规则 POST 命中数量
+
+        -- info
+        system_info:set("firewall_reload_count",0)   -- 14.系统 Reload 重载次数
+    end
+end
+
+-- 系统记录读取接口_json
+function _M.system_share_info_readall()
+    local method = ngx.req.get_method()
+    local result_table = {}
+    local args = nil
+    local result = nil
+    
+    if "GET" == method then
+        args = ngx.req.get_uri_args()
+    elseif "POST" == method then
+        ngx.req.read_body()
+        args = ngx.req.get_post_args()
+    end
+    
+    if args["token"] ~= nil then
+        if util.security_check(args["token"]) then
+            -- 检查通过，返回数据
+
+            -- good
+            result_table["firewall_req_total"] = system_info:get("firewall_req_total")
+            -- firewall_req_normal 考虑在前端自行计算汇总
+            result_table["firewall_req_normal"] = system_info:get("firewall_req_normal")
+            result_table["firewall_req_white_ip"] = system_info:get("firewall_req_white_ip")
+            result_table["firewall_req_white_url"] = system_info:get("firewall_req_white_url")
+
+            --- bad
+            result_table["firewall_req_attack"] = system_info:get("firewall_req_attack")
+            result_table["firewall_req_black_ip"] = system_info:get("firewall_req_black_ip")
+            result_table["firewall_req_header"] = system_info:get("firewall_req_header")
+            result_table["firewall_req_referer"] = system_info:get("firewall_req_referer")
+            result_table["firewall_req_cc"] = system_info:get("firewall_req_cc")
+            result_table["firewall_req_cookie"] = system_info:get("firewall_req_cookie")
+            result_table["firewall_req_url"] = system_info:get("firewall_req_url")
+            result_table["firewall_req_url_args"] = system_info:get("firewall_req_url_args")
+            result_table["firewall_req_ua"] = system_info:get("firewall_req_ua")
+            result_table["firewall_req_post"] = system_info:get("firewall_req_post")
+
+            -- info
+            result_table["firewall_reload_count"] = system_info:get("firewall_reload_count")
+            
+            result = util.security_token_encode(cjson.encode(result_table))
+        else
+            result = 'token is invalid.'
+        end
+    else
+        result = 'args is null.'
+    end
+
+    -- 回收空间
+    result_table = nil
+    args = nil
+    method = nil
+    
+    return result
+end
+
+-- 系统记录设置
+function _M.system_share_info_set(key,value)
+    system_info:set(key,value)
+end
+
+-- 系统记录读取
+function _M.system_share_info_get(key)
+    return system_info:get(key)
+end
+
+-- 系统记录增加
+function _M.system_share_info_incr(key)
+    system_info:incr(key,1)
+end
+
+-- 系统攻击记录增加
+function _M.system_share_attack_info_incr(key)
+    system_info:incr("firewall_req_attack",1)
+    system_info:incr(key,1)
+end
 
 function _M.load_rules()
     _M.RULES = util.get_rules(config.config_rule_dir)
@@ -62,6 +175,7 @@ function _M.header_check()
               if rule ~= "" and rulematch(HeaderName, rule, "ijo") then
                   util.log_record(config.config_log_dir,'Deny_Header', ngx.var.request_uri, HeaderName, rule)
                   if config.config_waf_enable == "on" then
+                      _M.system_share_attack_info_incr("firewall_req_header")
                       util.waf_output()
                       return true
                   end
@@ -82,6 +196,7 @@ function _M.referer_check()
                 if rule ~= "" and rulematch(Referer, rule, "ijo") then
                     util.log_record(config.config_log_dir,'Deny_Referer', ngx.var.request_uri, Referer, rule)
                     if config.config_waf_enable == "on" then
+                        _M.system_share_attack_info_incr("firewall_req_referer")
                         util.waf_output()
                         return true
                     end
@@ -100,6 +215,7 @@ function _M.white_ip_check()
         if IP_WHITE_RULE ~= nil then
             for _, rule in pairs(IP_WHITE_RULE) do
                 if rule ~= "" and iputils.ip_in_cidr(WHITE_IP, rule) then
+                    _M.system_share_attack_info_incr("firewall_req_white_ip")
                     util.log_record(config.config_log_dir,'White_IP', ngx.var_request_uri, "_", "_")
                     return true
                 end
@@ -130,6 +246,7 @@ function _M.black_ip_check()
         if IP_BLACK_RULE ~= nil then
             for _, rule in pairs(IP_BLACK_RULE) do
                 if rule ~= "" and iputils.ip_in_cidr(BLACK_IP, rule) then
+                    _M.system_share_attack_info_incr("firewall_req_black_ip")
                     util.log_record(config.config_log_dir,'BlackList_IP', ngx.var_request_uri, "_", "_")
                     if config.config_waf_enable == "on" then
                         ngx.exit(403)
@@ -149,6 +266,7 @@ function _M.white_url_check()
         if URL_WHITE_RULES ~= nil then
             for _,rule in pairs(URL_WHITE_RULES) do
                 if rule ~= "" and rulematch(REQ_URI, rule, "ijo") then
+                    _M.system_share_attack_info_incr("firewall_req_white_url")
                     return true
                 end
             end
@@ -186,6 +304,7 @@ function _M.cc_attack_check()
         local req,_ = limit:get(CC_TOKEN)
         if req then
             if req > CCcount then
+                _M.system_share_attack_info_incr("firewall_req_cc")
                 util.log_record(config.config_log_dir,'CC_Attack', ngx.var.request_uri, "-", "-")
                 if config.config_waf_enable == "on" then
                     ngx.exit(444)
@@ -208,6 +327,7 @@ function _M.cookie_attack_check()
         if USER_COOKIE ~= nil then
             for _, rule in pairs(COOKIE_RULES) do
                 if rule ~="" and rulematch(USER_COOKIE, rule, "jo") then
+                    _M.system_share_attack_info_incr("firewall_req_cookie")
                     util.log_record(config.config_log_dir,'Deny_Cookie', ngx.var.request_uri, "-", rule)
                     if config.config_waf_enable == "on" then
                         util.waf_output()
@@ -227,6 +347,7 @@ function _M.url_attack_check()
         local REQ_URI = ngx.var.request_uri
         for _,rule in pairs(URL_RULES) do
             if rule ~="" and rulematch(REQ_URI,rule,"ijo") then
+                _M.system_share_attack_info_incr("firewall_req_url")
                 util.log_record(config.config_log_dir,'Deny_URL', REQ_URI, "-", rule)
                 if config.config_waf_enable == "on" then
                     util.waf_output()
@@ -254,6 +375,7 @@ function _M.url_args_attack_check()
                     ARGS_DATA = val
                 end
                 if ARGS_DATA and type(ARGS_DATA) ~= "boolean" and rule ~="" and rulematch(unescape(ARGS_DATA), rule, "ijo") then
+                    _M.system_share_attack_info_incr("firewall_req_url_args")
                     util.log_record(config.config_log_dir,'Deny_URL_Args', ngx.var.request_uri, "-", rule)
                     if config.config_waf_enable == "on" then
                         util.waf_output()
@@ -274,6 +396,7 @@ function _M.user_agent_attack_check()
         if USER_AGENT ~= nil then
             for _, rule in pairs(USER_AGENT_RULES) do
                 if rule ~= "" and rulematch(USER_AGENT, rule, "jo") then
+                    _M.system_share_attack_info_incr("firewall_req_ua")
                     util.log_record(config.config_log_dir,'Deny_USER_AGENT', ngx.var.request_uri, USER_AGENT, rule)
                     if config.config_waf_enable == "on" then
                         util.waf_output()
@@ -321,6 +444,7 @@ function _M.post_attack_check()
         -- matching and filtering from rule list
         for _, rule in pairs(POST_RULES) do
             if rule ~= "" and rulematch(REQ_QUERY, rule, "ijo") then
+                _M.system_share_attack_info_incr("firewall_req_post")
                 util.log_record(config.config_log_dir,'Deny_USER_POST_DATA', REQ_QUERY, "-", rule)
                 if config.config_waf_enable == "on" then
                     util.waf_output()
@@ -343,6 +467,7 @@ end
 
 -- waf start
 function _M.check()
+    _M.system_share_info_incr("firewall_req_total")
     if _M.white_ip_check() then
     elseif _M.black_ip_check() then
     elseif _M.header_check() then
@@ -355,6 +480,7 @@ function _M.check()
     elseif _M.url_args_attack_check() then
     elseif _M.post_attack_check() then
     else
+        _M.system_share_info_incr("firewall_req_normal")
         return
     end
 end

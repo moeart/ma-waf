@@ -1,0 +1,132 @@
+*, *:before, *:after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  font-size: 62.5%;
+  font-family: 'Microsoft YaHei','Lantinghei SC','Open Sans',Arial,'Hiragino Sans GB','STHeiti','WenQuanYi Micro Hei','SimSun',sans-serif;
+}
+@media screen and (max-width: 620px) {
+  html, body {
+    font-size: 45%;
+  }
+}
+@media screen and (max-width: 480px) {
+  html, body {
+    font-size: 70%;
+  }
+}
+
+.forhtml {
+  background: -webkit-radial-gradient(bottom, #aac1c7, #f7fbfb 80%) no-repeat center center fixed;
+  background: radial-gradient(to top, #aac1c7, #f7fbfb 80%) no-repeat center center fixed;
+  background-size: cover;
+}
+
+body {
+  color: #686e74;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+section {
+  width: 80vw;
+  max-width: 64rem;
+  min-width: 58.9rem;
+  margin: 0 auto;
+}
+@media screen and (max-width: 480px) {
+  section {
+    min-width: 19rem;
+  }
+}
+
+.title {
+  font-size: 4rem;
+  font-weight: 900;
+  padding-top: 10vh;
+}
+@media screen and (max-width: 480px) {
+  .title {
+    font-size: 3rem;
+    text-align: center;
+    position: relative;
+    padding-top: 6vh;
+  }
+}
+.title:after {
+  content: "";
+  display: block;
+  height: .3rem;
+  width: 5.4rem;
+  background-color: #fbcd8a;
+  -webkit-transform: translate(0.3rem, 2rem);
+          transform: translate(0.3rem, 2rem);
+}
+@media screen and (max-width: 480px) {
+  .title:after {
+    left: 50%;
+    position: absolute;
+    -webkit-transform: translate(-50%, 2rem);
+            transform: translate(-50%, 2rem);
+  }
+}
+
+.cards {
+  padding-top: 6rem;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: justify;
+      -ms-flex-pack: justify;
+          justify-content: space-between;
+}
+@media screen and (max-width: 480px) {
+  .cards {
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+        -ms-flex-direction: column;
+            flex-direction: column;
+    -webkit-box-align: center;
+        -ms-flex-align: center;
+            align-items: center;
+  }
+}
+
+.card {
+  width: 666rem;
+  height: 26.8rem;
+  background-color: #f9fbfb;
+  border-radius: 6px;
+  position: relative;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: column;
+          flex-direction: column;
+  color: #5a6c7a;
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: .05rem;
+  box-shadow: 0 2rem 4rem #aac1c7;
+}
+@media screen and (max-width: 480px) {
+  .card {
+    margin-bottom: 2rem;
+  }
+}
+.card:after {
+  content: "";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 16rem;
+  height: 5.625rem;
+  -webkit-transform: translate(1.5rem, 22.5rem);
+          transform: translate(1.5rem, 22.5rem);
+}

@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html class="forhtml">
+
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>System Info</title>
+		<link type="text/css" rel="stylesheet" href="./res/style.css">
+		<script src="http://echarts.baidu.com/build/dist/echarts.js"></script>
+		
+		
+		<!-- 合并归纳显示版本 'Danger Header' =  'Danger Referer' +  'Danger Cookies' -->
+		<script type="text/javascript">
+			// 路径配置
+			require.config({
+				paths: {
+					echarts: 'http://echarts.baidu.com/build/dist'
+				}
+			});
+            var firewall_info_str = '{"firewall_reload_count":1,"firewall_req_post":0,"firewall_req_url_args":0,"firewall_req_cookie":0,"firewall_req_attack":160,"firewall_req_black_ip":0,"firewall_req_url":160,"firewall_req_total":251,"firewall_req_ua":0,"firewall_req_white_ip":0,"firewall_req_normal":91,"firewall_req_white_url":0,"firewall_req_cc":0,"firewall_req_referer":0,"firewall_req_header":0}'
+
+
+			
+			
+			var firewall_info_obj = JSON.parse(firewall_info_str);
+			
+			// 使用
+			require(
+				[
+					'echarts',
+					'echarts/chart/pie', // 使用柱状图就加载bar模块，按需加载
+					'echarts/chart/funnel' // 使用柱状图就加载bar模块，按需加载
+				],
+				function(ec) {
+					// 基于准备好的dom，初始化echarts图表
+					var myChart = ec.init(document.getElementById('main'));
+
+					var option = {
+						title: {
+							text: '总请求数:' + firewall_info_obj.firewall_req_total + ' Reload:' + firewall_info_obj.firewall_reload_count,
+							subtext: '攻击请求数:' + firewall_info_obj.firewall_req_attack,
+							x: 'center'
+						},
+						tooltip: {
+							trigger: 'item',
+							formatter: "{a} <br/>{b} : {c} ({d}%)"
+						},
+						legend: {
+							orient: 'vertical',
+							x: 'left',
+							data: ['Normal Request', 'White IP', 'White URL', 'Black IP', 'Danger Header', 'CC/DOS', 'Danger URL', 'Danger Arguments', 'Danger User-Agent', 'Danger POST Request']
+						},
+						toolbox: {
+							show: true,
+							feature: {
+								mark: {
+									show: false
+								},
+								dataView: {
+									show: false,
+									readOnly: false
+								},
+								magicType: {
+									show: true,
+									type: ['pie', 'funnel'],
+									option: {
+										funnel: {
+											x: '25%',
+											width: '50%',
+											funnelAlign: 'left',
+											max: 1548
+										}
+									}
+								},
+								restore: {
+									show: true
+								},
+								saveAsImage: {
+									show: true
+								}
+							}
+						},
+						calculable: true,
+						series: [{
+							name: '访问来源',
+							type: 'pie',
+							radius: '55%',
+							center: ['50%', '60%'],
+							data: [{
+									value: (firewall_info_obj.firewall_req_normal),
+									//value: (firewall_info_obj.firewall_req_total - firewall_info_obj.firewall_req_attack),
+									name: 'Normal Request'
+								},
+								{
+									value: firewall_info_obj.firewall_req_white_ip,
+									name: 'White IP'
+								},
+								{
+									value: firewall_info_obj.firewall_req_white_url,
+									name: 'White URL'
+								},
+								{
+									value: firewall_info_obj.firewall_req_black_ip,
+									name: 'Black IP'
+								},
+								{
+									value: firewall_info_obj.firewall_req_header + firewall_info_obj.firewall_req_referer + firewall_info_obj.firewall_req_cookie,
+									name: 'Danger Header'
+								},
+								{
+									value: firewall_info_obj.firewall_req_cc,
+									name: 'CC/DOS'
+								},
+								{
+									value: firewall_info_obj.firewall_req_url,
+									name: 'Danger URL'
+								},
+								{
+									value: firewall_info_obj.firewall_req_url_args,
+									name: 'Danger Arguments'
+								},
+								{
+									value: firewall_info_obj.firewall_req_ua,
+									name: 'Danger User-Agent'
+								},
+								{
+									value: firewall_info_obj.firewall_req_post,
+									name: 'Danger POST Request'
+								}
+							]
+						}]
+						//,color: ['rgb(239,219,200)','rgb(137,246,100)','rgb(155,314,203)','rgb(155,155,146)','rgb(111,222,100)']
+					};
+					
+					// 为echarts对象加载数据 
+					myChart.setOption(option);
+				}
+			);
+		</script>
+		
+		<!-- 详细显示版本 -->
+		<!--
+		<script type="text/javascript">
+			// 路径配置
+			require.config({
+				paths: {
+					echarts: 'http://echarts.baidu.com/build/dist'
+				}
+			});
+            var firewall_info_str = '{"firewall_reload_count":1,"firewall_req_post":0,"firewall_req_url_args":0,"firewall_req_cookie":0,"firewall_req_attack":160,"firewall_req_black_ip":0,"firewall_req_url":160,"firewall_req_total":251,"firewall_req_ua":0,"firewall_req_white_ip":0,"firewall_req_normal":91,"firewall_req_white_url":0,"firewall_req_cc":0,"firewall_req_referer":0,"firewall_req_header":0}'
+
+
+			
+			
+			var firewall_info_obj = JSON.parse(firewall_info_str);
+			
+			// 使用
+			require(
+				[
+					'echarts',
+					'echarts/chart/pie', // 使用柱状图就加载bar模块，按需加载
+					'echarts/chart/funnel' // 使用柱状图就加载bar模块，按需加载
+				],
+				function(ec) {
+					// 基于准备好的dom，初始化echarts图表
+					var myChart = ec.init(document.getElementById('main'));
+
+					var option = {
+						title: {
+							text: '总请求数:' + firewall_info_obj.firewall_req_total + ' Reload:' + firewall_info_obj.firewall_reload_count,
+							subtext: '攻击请求数:' + firewall_info_obj.firewall_req_attack,
+							x: 'center'
+						},
+						tooltip: {
+							trigger: 'item',
+							formatter: "{a} <br/>{b} : {c} ({d}%)"
+						},
+						legend: {
+							orient: 'vertical',
+							x: 'left',
+							data: ['Normal Request', 'White IP', 'White URL', 'Black IP', 'Danger Header', 'Danger Referer', 'CC/DOS', 'Danger Cookies', 'Danger URL', 'Danger Arguments', 'Danger User-Agent', 'Danger POST Request']
+						},
+						toolbox: {
+							show: true,
+							feature: {
+								mark: {
+									show: false
+								},
+								dataView: {
+									show: false,
+									readOnly: false
+								},
+								magicType: {
+									show: true,
+									type: ['pie', 'funnel'],
+									option: {
+										funnel: {
+											x: '25%',
+											width: '50%',
+											funnelAlign: 'left',
+											max: 1548
+										}
+									}
+								},
+								restore: {
+									show: true
+								},
+								saveAsImage: {
+									show: true
+								}
+							}
+						},
+						calculable: true,
+						series: [{
+							name: '访问来源',
+							type: 'pie',
+							radius: '55%',
+							center: ['50%', '60%'],
+							data: [{
+									value: (firewall_info_obj.firewall_req_normal),
+									//value: (firewall_info_obj.firewall_req_total - firewall_info_obj.firewall_req_attack),
+									name: 'Normal Request'
+								},
+								{
+									value: firewall_info_obj.firewall_req_white_ip,
+									name: 'White IP'
+								},
+								{
+									value: firewall_info_obj.firewall_req_white_url,
+									name: 'White URL'
+								},
+								{
+									value: firewall_info_obj.firewall_req_black_ip,
+									name: 'Black IP'
+								},
+								{
+									value: firewall_info_obj.firewall_req_header,
+									name: 'Danger Header'
+								},
+								{
+									value: firewall_info_obj.firewall_req_referer,
+									name: 'Danger Referer'
+								},
+								{
+									value: firewall_info_obj.firewall_req_cc,
+									name: 'CC/DOS'
+								},
+								{
+									value: firewall_info_obj.firewall_req_cookie,
+									name: 'Danger Cookies'
+								},
+								{
+									value: firewall_info_obj.firewall_req_url,
+									name: 'Danger URL'
+								},
+								{
+									value: firewall_info_obj.firewall_req_url_args,
+									name: 'Danger Arguments'
+								},
+								{
+									value: firewall_info_obj.firewall_req_ua,
+									name: 'Danger User-Agent'
+								},
+								{
+									value: firewall_info_obj.firewall_req_post,
+									name: 'Danger POST Request'
+								}
+							]
+						}]
+						//,color: ['rgb(239,219,200)','rgb(137,246,100)','rgb(155,314,203)','rgb(155,155,146)','rgb(111,222,100)']
+					};
+					
+					// 为echarts对象加载数据 
+					myChart.setOption(option);
+				}
+			);
+		</script>
+		
+		-->
+
+		<body>
+			<section class="title">
+				<p>System Info</p>
+			</section>
+
+			<section class="cards">
+				<div class="card card--oil" id="main">
+
+				</div>
+			</section>
+
+			<!--<section class="cards">
+				<div class="card card--oil" id="main2">
+
+				</div>
+			</section>-->
+
+		</body>
+
+</html>

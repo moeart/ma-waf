@@ -43,6 +43,195 @@ local _M = {
     }
 }
 
+-- security_token_check
+function _M.security_token_check(token)
+    if token ~= nil then
+        if token == config.firewall_security_token then
+            _M.write(config.config_log_dir.."/token.log","token firewall_security_token ok:"..token.."\n")
+            return true
+        end
+    end
+    return false
+end
+
+-- security_timestamp_check
+function _M.security_timestamp_check(times)
+    if times ~= nil then
+        local times_recv = tonumber(times);
+        -- 检查时间戳格式
+        if times_recv ~= nil then
+          local times_current = _M.security_get_timestamp()
+          _M.write(config.config_log_dir.."/token.log","token timestamp abs:"..math.abs(times_current - times_recv).."\n")
+          -- 时间差不得超过10分钟
+          if math.abs(times_current - times_recv) <= 600 then
+              _M.write(config.config_log_dir.."/token.log","token timestamp abs is <= 600:"..math.abs(times_current - times_recv).."\n")
+              return true
+          end
+        else
+            _M.write(config.config_log_dir.."/token.log","token timestamp format error:"..times.."\n")
+        end
+        
+    end
+    _M.write(config.config_log_dir.."/token.log","token timestamp error\n")
+    return false
+end
+
+-- security_get_timestamp
+function _M.security_get_timestamp()
+    return os.time()
+end
+
+-- security_is_vaild_token
+function _M.security_is_vaild_token(tokenlab,plaintext)
+    if _M.security_token_check(tokenlab["token"]) and _M.security_timestamp_check(tokenlab["timestamp"]) then
+        _M.write(config.config_log_dir.."/token.log","token is valid \n")
+        return true
+    end
+    -- fixd crash bug.
+    --_M.write(config.config_log_dir.."/token.log","token not valid :"..tokenlab["token"].."___"..tokenlab["timestamp"].."\n")
+    _M.write(config.config_log_dir.."/token.log","token not valid :"..plaintext)
+    return false
+end
+
+-- security_feature_string_check
+function _M.security_feature_string_check(ptext)
+    if string.find(ptext,"normal_feature_string_firewall_sec") ~= nil then
+        return true
+    end
+    
+    return false
+end
+
+-- security_check
+function _M.security_check(secstr)
+    if secstr ~= nil then
+        -- 此处缺少异常处理
+        _M.write(config.config_log_dir.."/token.log","token get secstr :"..secstr.."\n")
+        local plaintext = _M.security_token_decode(secstr)
+        
+        if plaintext ~= nil then
+          -- 检查格式特征是否正确，以防乱输入
+          if _M.security_feature_string_check(plaintext) then
+              _M.write(config.config_log_dir.."/token.log","token feature check ok :"..plaintext.."\n")
+              local token_table = cjson.decode(plaintext)
+              -- 检查是否有效
+              if token_table ~= nil then
+                return _M.security_is_vaild_token(token_table,plaintext)
+              end
+          end
+        else
+          _M.write(config.config_log_dir.."/token.log","token decode plaintext is nil\n")
+        end
+    end
+    
+    return false
+end
+
+-- security_str_gen
+function _M.security_str_gen()
+    local sec_token_table = {}
+    
+    sec_token_table["status"] = "normal_feature_string_firewall_sec"
+    sec_token_table["timestamp"] = tostring(_M.security_get_timestamp()) -- 这里需要字符串化，否则传入非数字json解析会引起崩溃
+    sec_token_table["token"] = config.firewall_security_token
+    
+    return _M.security_token_encode(cjson.encode(sec_token_table))
+end
+
+-- security_test
+function _M.security_test()
+    local test = _M.security_str_gen()
+    return ("token: "..test)
+end
+
+-- encode/crypt_de
+function _M.security_token_encode(source_str)
+    --local b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+    local b64chars = config.firewall_security_table
+    local s64 = ''
+    local str = source_str
+
+    while #str > 0 do
+        local bytes_num = 0
+        local buf = 0
+
+        for byte_cnt=1,3 do
+            buf = (buf * 256)
+            if #str > 0 then
+                buf = buf + string.byte(str, 1, 1)
+                str = string.sub(str, 2)
+                bytes_num = bytes_num + 1
+            end
+        end
+
+        for group_cnt=1,(bytes_num+1) do
+            local b64char = math.fmod(math.floor(buf/262144), 64) + 1
+            s64 = s64 .. string.sub(b64chars, b64char, b64char)
+            buf = buf * 64
+        end
+
+        for fill_cnt=1,(3-bytes_num) do
+            s64 = s64 .. '='
+        end
+    end
+
+    return s64
+end
+
+function _M.security_token_decode(str64)
+    --local b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+    local b64chars = config.firewall_security_table
+    local temp={}
+    for i=1,64 do
+        temp[string.sub(b64chars,i,i)] = i
+    end
+    temp['=']=0
+    local str=""
+    for i=1,#str64,4 do
+        if i>#str64 then
+            break
+        end
+        local data = 0
+        local str_count=0
+        for j=0,3 do
+            local str1=string.sub(str64,i+j,i+j)
+            if not temp[str1] then
+                return
+            end
+            if temp[str1] < 1 then
+                data = data * 64
+            else
+                data = data * 64 + temp[str1]-1
+                str_count = str_count + 1
+            end
+        end
+        for j=16,0,-8 do
+            if str_count > 0 then
+                str=str..string.char(math.floor(data/math.pow(2,j)))
+                --data=math.mod(data,math.pow(2,j))
+                data=(data % math.pow(2,j))
+                str_count = str_count - 1
+            end
+        end
+    end
+
+    local last = tonumber(string.byte(str, string.len(str), string.len(str)))
+    if last == 0 then
+        str = string.sub(str, 1, string.len(str) - 1)
+    end
+    return str
+end
+
+
+-- log_write
+function _M.write(logfile,msg)
+    local fd = io.open(logfile,"ab")
+    if fd == nil then return end
+    fd:write(msg)
+    fd:flush()
+    fd:close()
+end
+
 -- Get all rule file name
 function _M.get_rule_files(rules_path)
     local rule_files = {}
