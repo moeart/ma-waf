@@ -8,7 +8,131 @@
 		<title>System Info</title>
 		<link type="text/css" rel="stylesheet" href="./res/style.css">
 		<script src="http://echarts.baidu.com/build/dist/echarts.js"></script>
+    <script src="./res/jquery.min.js"></script>
 		
+		<script>
+      /**
+       *  当前时间戳（10位）
+       */
+      function  getTimestamp(){
+        let outcome = Math.round(new Date().getTime()/1000).toString();
+        return outcome
+      }
+      
+      var EENC = {
+      _keyStr: "Zabcdef6789GHIJKLtuvDEFMNOPQRS01234YghijklXmnoBCTUVAWpqrswxyz5+/",
+      encode: function(e) {
+        var t = "";
+        var n, r, i, s, o, u, a;
+        var f = 0;
+        e = EENC._utf8_encode(e);
+        while (f < e.length) {
+          n = e.charCodeAt(f++);
+          r = e.charCodeAt(f++);
+          i = e.charCodeAt(f++);
+          s = n >> 2;
+          o = (n & 3) << 4 | r >> 4;
+          u = (r & 15) << 2 | i >> 6;
+          a = i & 63;
+          if (isNaN(r)) {
+            u = a = 64
+          } else if (isNaN(i)) {
+            a = 64
+          }
+          t = t + this._keyStr.charAt(s) + this._keyStr.charAt(o) + this._keyStr.charAt(u) + this._keyStr.charAt(a)
+        }
+        return t
+      },
+      decode: function(e) {
+          var t = "";
+          var n, r, i;
+          var s, o, u, a;
+          var f = 0;
+          e = e.replace(/[^A-Za-z0-9+/=]/g, "");
+          while (f < e.length) {
+            s = this._keyStr.indexOf(e.charAt(f++));
+            o = this._keyStr.indexOf(e.charAt(f++));
+            u = this._keyStr.indexOf(e.charAt(f++));
+            a = this._keyStr.indexOf(e.charAt(f++));
+            n = s << 2 | o >> 4;
+            r = (o & 15) << 4 | u >> 2;
+            i = (u & 3) << 6 | a;
+            t = t + String.fromCharCode(n);
+            if (u != 64) {
+              t = t + String.fromCharCode(r)
+            }
+            if (a != 64) {
+              t = t + String.fromCharCode(i)
+            }
+          }
+          t = EENC._utf8_decode(t);
+          return t
+        },
+        _utf8_encode: function(e) {
+          e = e.replace(/rn/g, "n");
+          var t = "";
+          for (var n = 0; n < e.length; n++) {
+            var r = e.charCodeAt(n);
+            if (r < 128) {
+              t += String.fromCharCode(r)
+            } else if (r > 127 && r < 2048) {
+              t += String.fromCharCode(r >> 6 | 192);
+              t += String.fromCharCode(r & 63 | 128)
+            } else {
+              t += String.fromCharCode(r >> 12 | 224);
+              t += String.fromCharCode(r >> 6 & 63 | 128);
+              t += String.fromCharCode(r & 63 | 128)
+            }
+          }
+          return t
+        },
+        _utf8_decode: function(e) {
+          var t = "";
+          var n = 0;
+          var r = c1 = c2 = 0;
+          while (n < e.length) {
+            r = e.charCodeAt(n);
+            if (r < 128) {
+              t += String.fromCharCode(r);
+              n++
+            } else if (r > 191 && r < 224) {
+              c2 = e.charCodeAt(n + 1);
+              t += String.fromCharCode((r & 31) << 6 | c2 & 63);
+              n += 2
+            } else {
+              c2 = e.charCodeAt(n + 1);
+              c3 = e.charCodeAt(n + 2);
+              t += String.fromCharCode((r & 15) << 12 | (c2 & 63) << 6 | c3 & 63);
+              n += 3
+            }
+          }
+          return t
+        }
+      }
+      
+      function getInfo()
+      {
+          var timestamp = getTimestamp();
+          var status = "normal_feature_string_firewall_sec";
+          var token = "security_token_default";
+          
+          var key = {
+              "timestamp":timestamp,
+              "status":status,
+              "token":token
+          };
+          
+          var tkey = EENC.encode(JSON.stringify(key));//.replaceAll(': "',':"')
+          var api = "../MoeCppmGoUTgOMo4?token=" + tkey;//lua
+          
+          var result = EENC.decode($.ajax({url:api,async:false}).responseText);
+          result = result.substring(0,result.length-1)
+
+          //console.log(result);
+          
+          return result;
+      }
+		</script>
 		
 		<!-- 合并归纳显示版本 'Danger Header' =  'Danger Referer' +  'Danger Cookies' -->
 		<script type="text/javascript">
@@ -18,12 +142,9 @@
 					echarts: 'http://echarts.baidu.com/build/dist'
 				}
 			});
-            var firewall_info_str = '{"firewall_reload_count":1,"firewall_req_post":0,"firewall_req_url_args":0,"firewall_req_cookie":0,"firewall_req_attack":160,"firewall_req_black_ip":0,"firewall_req_url":160,"firewall_req_total":251,"firewall_req_ua":0,"firewall_req_white_ip":0,"firewall_req_normal":91,"firewall_req_white_url":0,"firewall_req_cc":0,"firewall_req_referer":0,"firewall_req_header":0}'
-
-
+            //var firewall_info_str = '{"firewall_reload_count":1,"firewall_req_post":0,"firewall_req_url_args":0,"firewall_req_cookie":0,"firewall_req_attack":160,"firewall_req_black_ip":0,"firewall_req_url":160,"firewall_req_total":251,"firewall_req_ua":0,"firewall_req_white_ip":0,"firewall_req_normal":91,"firewall_req_white_url":0,"firewall_req_cc":0,"firewall_req_referer":0,"firewall_req_header":0}'
 			
-			
-			var firewall_info_obj = JSON.parse(firewall_info_str);
+			var firewall_info_obj = JSON.parse(getInfo());
 			
 			// 使用
 			require(
