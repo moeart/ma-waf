@@ -126,9 +126,14 @@
           var api = "../MoeCppmGoUTgOMo4?token=" + tkey;//lua
           
           var result = EENC.decode($.ajax({url:api,async:false}).responseText);
-          result = result.substring(0,result.length-1)
 
-          //console.log(result);
+		  // 检查 JSON 字符串结尾是否正确
+		  if (! (result.startsWith('{') && result.endsWith("}")) )
+		  {
+			  result = result.substring(result.indexOf('{'),result.lastIndexOf('}') + 1)
+		  }
+
+          console.log(result);
           
           return result;
       }
