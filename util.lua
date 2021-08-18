@@ -47,7 +47,7 @@ local _M = {
 function _M.security_token_check(token)
     if token ~= nil then
         if token == config.firewall_security_token then
-            _M.write(config.config_log_dir.."/token.log","token firewall_security_token ok:"..token.."\n")
+            --_M.write(config.config_log_dir.."/token.log","token firewall_security_token ok:"..token.."\n")
             return true
         end
     end
@@ -61,18 +61,18 @@ function _M.security_timestamp_check(times)
         -- 检查时间戳格式
         if times_recv ~= nil then
           local times_current = _M.security_get_timestamp()
-          _M.write(config.config_log_dir.."/token.log","token timestamp abs:"..math.abs(times_current - times_recv).."\n")
+          --_M.write(config.config_log_dir.."/token.log","token timestamp abs:"..math.abs(times_current - times_recv).."\n")
           -- 时间差不得超过10分钟
           if math.abs(times_current - times_recv) <= 600 then
-              _M.write(config.config_log_dir.."/token.log","token timestamp abs is <= 600:"..math.abs(times_current - times_recv).."\n")
+              --_M.write(config.config_log_dir.."/token.log","token timestamp abs is <= 600:"..math.abs(times_current - times_recv).."\n")
               return true
           end
         else
-            _M.write(config.config_log_dir.."/token.log","token timestamp format error:"..times.."\n")
+            --_M.write(config.config_log_dir.."/token.log","token timestamp format error:"..times.."\n")
         end
         
     end
-    _M.write(config.config_log_dir.."/token.log","token timestamp error\n")
+    --_M.write(config.config_log_dir.."/token.log","token timestamp error\n")
     return false
 end
 
@@ -84,12 +84,12 @@ end
 -- security_is_vaild_token
 function _M.security_is_vaild_token(tokenlab,plaintext)
     if _M.security_token_check(tokenlab["token"]) and _M.security_timestamp_check(tokenlab["timestamp"]) then
-        _M.write(config.config_log_dir.."/token.log","token is valid \n")
+        --_M.write(config.config_log_dir.."/token.log","token is valid \n")
         return true
     end
     -- fixd crash bug.
     --_M.write(config.config_log_dir.."/token.log","token not valid :"..tokenlab["token"].."___"..tokenlab["timestamp"].."\n")
-    _M.write(config.config_log_dir.."/token.log","token not valid :"..plaintext)
+    --_M.write(config.config_log_dir.."/token.log","token not valid :"..plaintext)
     return false
 end
 
@@ -106,13 +106,13 @@ end
 function _M.security_check(secstr)
     if secstr ~= nil then
         -- 此处缺少异常处理
-        _M.write(config.config_log_dir.."/token.log","token get secstr :"..secstr.."\n")
+        --_M.write(config.config_log_dir.."/token.log","token get secstr :"..secstr.."\n")
         local plaintext = _M.security_token_decode(secstr)
         
         if plaintext ~= nil then
           -- 检查格式特征是否正确，以防乱输入
           if _M.security_feature_string_check(plaintext) then
-              _M.write(config.config_log_dir.."/token.log","token feature check ok :"..plaintext.."\n")
+              --_M.write(config.config_log_dir.."/token.log","token feature check ok :"..plaintext.."\n")
               local token_table = cjson.decode(plaintext)
               -- 检查是否有效
               if token_table ~= nil then
@@ -120,7 +120,7 @@ function _M.security_check(secstr)
               end
           end
         else
-          _M.write(config.config_log_dir.."/token.log","token decode plaintext is nil\n")
+          --_M.write(config.config_log_dir.."/token.log","token decode plaintext is nil\n")
         end
     end
     
