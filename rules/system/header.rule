@@ -1,1 +1,1 @@
-[{"Id":76,"RuleType":"Header","RuleItem":"(Acunetix-Aspect|Acunetix-Aspect-Password|Acunetix-Aspect-Queries|X-WIPP|X-RequestManager-Memo|X-Request-Memo|X-Scan-Memo)"}]
+[{"Id":76,"RuleType":"Header","RuleItem":"(Acunetix-Aspect|Acunetix-Aspect-Password|Acunetix-Aspect-Queries|X-WIPP|X-RequestManager-Memo|X-Request-Memo|X-Scan-Memo)"},{"Id":77,"RuleType":"url","RuleItem":"(.)*(jndi|date|java|marker|ctx|lower|upper|jndi|jndi|main|jvmrunargs|sys|env|log4j|rmi|ldap)(.)*(rmi|ldap)(.)*"}]
