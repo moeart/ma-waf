@@ -26,7 +26,7 @@ local unescape = ngx.unescape_uri
 local config = require("config")
 local util = require("util")
 local iputils = require("iputils")
-local cjson = require("cjson.safe")
+local cjson = require("cjson")
 
 local _M = {
     RULES = {}

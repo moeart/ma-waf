@@ -21,7 +21,7 @@ THE SOFTWARE.
 ]]
 
 local io = require("io")
-local cjson = require("cjson.safe")
+local cjson = require("cjson")
 local string = require("string")
 local config = require("config")
 
