@@ -277,7 +277,7 @@ end
 -- deny cc attack
 function _M.cc_attack_check()
     if config.config_cc_check == "on" then
-        local ATTACK_URI = ngx.var.uri
+        local ATTACK_URI = ngx.var.request_uri
         -- check ua whitelist
         -- if in whitelist then use ip+url only
         local USER_AGENT_RULES = _M.get_rule('useragentforcc.rule')
@@ -292,12 +292,14 @@ function _M.cc_attack_check()
         end
         -- ip only mode
         local CC_TOKEN = util.get_client_ip()
+        local CC_LOGTAG = "CC_Attack_IP"
         local limit = ngx.shared.limit
         local CCcount = tonumber(string.match(config.config_cc_rate_ip, '(.*)/'))
         local CCseconds = tonumber(string.match(config.config_cc_rate_ip, '/(.*)'))
         -- ip + url mode
         if config.config_cc_mode == "ipurl" or USER_AGENT_WHITE then
             CC_TOKEN = util.get_client_ip() .. ATTACK_URI
+            CC_LOGTAG = "CC_Attack_IPURL"
             CCcount = tonumber(string.match(config.config_cc_rate_ipurl, '(.*)/'))
             CCseconds = tonumber(string.match(config.config_cc_rate_ipurl, '/(.*)'))
         end
@@ -305,7 +307,7 @@ function _M.cc_attack_check()
         if req then
             if req > CCcount then
                 _M.system_share_attack_info_incr("firewall_req_cc")
-                util.log_record(config.config_log_dir,'CC_Attack', ngx.var.request_uri, "-", "-")
+                util.log_record(config.config_log_dir, CC_LOGTAG, ngx.var.request_uri, "-", "-")
                 if config.config_waf_enable == "on" then
                     ngx.exit(444)
                 end
