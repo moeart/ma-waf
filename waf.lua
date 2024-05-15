@@ -261,8 +261,8 @@ end
 -- allow white url
 function _M.white_url_check()
     if config.config_white_url_check == "on" then
-        local URL_WHITE_RULES = _M.get_rule('writeurl.rule')
-        local REQ_URI = ngx.var.request_uri
+        local URL_WHITE_RULES = _M.get_rule('whiteurl.rule')
+        local REQ_URI = ngx.var.http_host .. ngx.var.request_uri
         if URL_WHITE_RULES ~= nil then
             for _,rule in pairs(URL_WHITE_RULES) do
                 if rule ~= "" and rulematch(REQ_URI, rule, "ijo") then
@@ -471,13 +471,13 @@ end
 function _M.check()
     _M.system_share_info_incr("firewall_req_total")
     if _M.white_ip_check() then
+    elseif _M.white_url_check() then
     elseif _M.black_ip_check() then
+    elseif _M.cc_attack_check() then
     elseif _M.header_check() then
     elseif _M.user_agent_attack_check() then
     elseif _M.referer_check() then
-    elseif _M.white_url_check() then
     elseif _M.url_attack_check() then
-    elseif _M.cc_attack_check() then
     elseif _M.cookie_attack_check() then
     elseif _M.url_args_attack_check() then
     elseif _M.post_attack_check() then

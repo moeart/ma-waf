@@ -1,1 +1,1 @@
-[{"Id":75,"RuleType":"Referer","RuleItem":"(TESTING_PURPOSES_ONLY)"},{"Id":77,"RuleType":"url","RuleItem":"(.)*(jndi|date|java|marker|ctx|lower|upper|jndi|jndi|main|jvmrunargs|sys|env|log4j|rmi|ldap)(.)*(rmi|ldap)(.)*"}]
+[{"Id":75,"RuleType":"Referer","RuleItem":"(TESTING_PURPOSES_ONLY|www.google.com)"},{"Id":77,"RuleType":"url","RuleItem":"(.)*(jndi|date|java|marker|ctx|lower|upper|jndi|jndi|main|jvmrunargs|sys|env|log4j|rmi|ldap)(.)*(rmi|ldap)(.)*"}]
