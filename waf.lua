@@ -81,36 +81,37 @@ function _M.system_share_info_readall()
         args = ngx.req.get_post_args()
     end
     
-    if args["token"] ~= nil then
-        if util.security_check(args["token"]) then
-            -- 检查通过，返回数据
+    -- 检查是否为内部API调用（/api/stats路径）
+    local uri = ngx.var.uri
+    local is_internal_api = uri == "/api/stats"
+    
+    -- 允许内部API调用或带有有效token的请求
+    if is_internal_api or (args["token"] ~= nil and util.security_check(args["token"])) then
+        -- 检查通过，返回数据
 
-            -- good
-            result_table["firewall_req_total"] = system_info:get("firewall_req_total")
-            -- firewall_req_normal 考虑在前端自行计算汇总
-            result_table["firewall_req_normal"] = system_info:get("firewall_req_normal")
-            result_table["firewall_req_white_ip"] = system_info:get("firewall_req_white_ip")
-            result_table["firewall_req_white_url"] = system_info:get("firewall_req_white_url")
+        -- good
+        result_table["firewall_req_total"] = system_info:get("firewall_req_total")
+        -- firewall_req_normal 考虑在前端自行计算汇总
+        result_table["firewall_req_normal"] = system_info:get("firewall_req_normal")
+        result_table["firewall_req_white_ip"] = system_info:get("firewall_req_white_ip")
+        result_table["firewall_req_white_url"] = system_info:get("firewall_req_white_url")
 
-            --- bad
-            result_table["firewall_req_attack"] = system_info:get("firewall_req_attack")
-            result_table["firewall_req_black_ip"] = system_info:get("firewall_req_black_ip")
-            result_table["firewall_req_header"] = system_info:get("firewall_req_header")
-            result_table["firewall_req_referer"] = system_info:get("firewall_req_referer")
-            result_table["firewall_req_cc"] = system_info:get("firewall_req_cc")
-            result_table["firewall_req_cookie"] = system_info:get("firewall_req_cookie")
-            result_table["firewall_req_url"] = system_info:get("firewall_req_url")
-            result_table["firewall_req_url_args"] = system_info:get("firewall_req_url_args")
-            result_table["firewall_req_ua"] = system_info:get("firewall_req_ua")
-            result_table["firewall_req_post"] = system_info:get("firewall_req_post")
+        --- bad
+        result_table["firewall_req_attack"] = system_info:get("firewall_req_attack")
+        result_table["firewall_req_black_ip"] = system_info:get("firewall_req_black_ip")
+        result_table["firewall_req_header"] = system_info:get("firewall_req_header")
+        result_table["firewall_req_referer"] = system_info:get("firewall_req_referer")
+        result_table["firewall_req_cc"] = system_info:get("firewall_req_cc")
+        result_table["firewall_req_cookie"] = system_info:get("firewall_req_cookie")
+        result_table["firewall_req_url"] = system_info:get("firewall_req_url")
+        result_table["firewall_req_url_args"] = system_info:get("firewall_req_url_args")
+        result_table["firewall_req_ua"] = system_info:get("firewall_req_ua")
+        result_table["firewall_req_post"] = system_info:get("firewall_req_post")
 
-            -- info
-            result_table["firewall_reload_count"] = system_info:get("firewall_reload_count")
-            
-            result = util.security_token_encode(cjson.encode(result_table))
-        else
-            result = 'token is invalid.'
-        end
+        -- info
+        result_table["firewall_reload_count"] = system_info:get("firewall_reload_count")
+        
+        result = util.security_token_encode(cjson.encode(result_table))
     else
         result = 'args is null.'
     end
@@ -215,7 +216,7 @@ function _M.white_ip_check()
         if IP_WHITE_RULE ~= nil then
             for _, rule in pairs(IP_WHITE_RULE) do
                 if rule ~= "" and iputils.ip_in_cidr(WHITE_IP, rule) then
-                    _M.system_share_attack_info_incr("firewall_req_white_ip")
+                    _M.system_share_info_incr("firewall_req_white_ip")
                     util.log_record(config.config_log_dir,'White_IP', ngx.var_request_uri, "_", "_")
                     return true
                 end
@@ -266,7 +267,7 @@ function _M.white_url_check()
         if URL_WHITE_RULES ~= nil then
             for _,rule in pairs(URL_WHITE_RULES) do
                 if rule ~= "" and rulematch(REQ_URI, rule, "ijo") then
-                    _M.system_share_attack_info_incr("firewall_req_white_url")
+                    _M.system_share_info_incr("firewall_req_white_url")
                     return true
                 end
             end

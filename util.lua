@@ -323,8 +323,33 @@ end
 
 -- WAF log record for json
 function _M.log_record(config_log_dir, method, url, data, ruletag)
-    local log_path = config_log_dir
     local client_IP = _M.get_client_ip()
+    
+    -- 检查是否在日志忽略白名单中
+    if config.config_log_whitelist_enable == "on" then
+        -- 检查是否为白名单IP
+        local IP_WHITE_RULE = require("waf").get_rule('whiteip.rule')
+        if IP_WHITE_RULE ~= nil then
+            for _, rule in pairs(IP_WHITE_RULE) do
+                if rule ~= "" and require("iputils").ip_in_cidr(client_IP, rule) then
+                    return -- 忽略白名单IP的日志
+                end
+            end
+        end
+        
+        -- 检查是否为白名单URL
+        local URL_WHITE_RULES = require("waf").get_rule('whiteurl.rule')
+        local REQ_URI = ngx.var.http_host .. ngx.var.request_uri
+        if URL_WHITE_RULES ~= nil then
+            for _, rule in pairs(URL_WHITE_RULES) do
+                if rule ~= "" and ngx.re.find(REQ_URI, rule, "ijo") then
+                    return -- 忽略白名单URL的日志
+                end
+            end
+        end
+    end
+    
+    local log_path = config_log_dir
     local user_agent = _M.get_user_agent()
     local server_name = ngx.var.server_name
     local local_time = ngx.localtime()

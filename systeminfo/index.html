@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoeWAF 管理界面</title>
+    <link rel="stylesheet" href="https://cdn.jsdmirror.com/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdmirror.com/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdmirror.com/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdmirror.com/npm/axios@1.4.0/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+        }
+        .container {
+            margin-top: 20px;
+        }
+        .card {
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #007bff;
+            color: white;
+        }
+        .nav-tabs .nav-link.active {
+            background-color: #e9ecef;
+            border-color: #dee2e6 #dee2e6 #e9ecef;
+        }
+        .rule-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+        }
+        .rule-item:hover {
+            background-color: #f8f9fa;
+        }
+        .rule-content {
+            margin-left: 20px;
+        }
+        .btn-group {
+            margin-right: 10px;
+        }
+        .alert {
+            margin-top: 10px;
+        }
+        #chart-container {
+            width: 100%;
+            height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">MoeWAF 管理界面</h1>
+        
+        <!-- 导航标签 -->
+        <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="status-tab" data-bs-toggle="tab" data-bs-target="#status" type="button" role="tab" aria-controls="status" aria-selected="true">系统状态</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="rules-tab" data-bs-toggle="tab" data-bs-target="#rules" type="button" role="tab" aria-controls="rules" aria-selected="false">规则管理</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button" role="tab" aria-controls="logs" aria-selected="false">日志设置</button>
+            </li>
+        </ul>
+        
+        <!-- 标签内容 -->
+        <div class="tab-content" id="mainTabsContent">
+            <!-- 系统状态标签 -->
+            <div class="tab-pane fade show active" id="status" role="tabpanel" aria-labelledby="status-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">统计数据</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div id="chart-container"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>项目</th>
+                                            <th>数量</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="stats-table">
+                                        <tr>
+                                            <td>请求总数</td>
+                                            <td id="req-total">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>正常请求</td>
+                                            <td id="req-normal">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>攻击请求</td>
+                                            <td id="req-attack">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>白名单IP命中</td>
+                                            <td id="req-white-ip">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>白名单URL命中</td>
+                                            <td id="req-white-url">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>黑名单IP命中</td>
+                                            <td id="req-black-ip">-</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 规则管理标签 -->
+            <div class="tab-pane fade" id="rules" role="tabpanel" aria-labelledby="rules-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">规则管理</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="rule-file" class="form-label">选择规则文件</label>
+                            <select class="form-select" id="rule-file">
+                                <option value="system/args.rule">参数规则 (args.rule)</option>
+                                <option value="system/cookie.rule">Cookie规则 (cookie.rule)</option>
+                                <option value="system/post.rule">POST规则 (post.rule)</option>
+                                <option value="system/url.rule">URL规则 (url.rule)</option>
+                                <option value="system/useragent.rule">User-Agent规则 (useragent.rule)</option>
+                                <option value="system/referer.rule">Referer规则 (referer.rule)</option>
+                                <option value="system/header.rule">Header规则 (header.rule)</option>
+                                <option value="blackip.rule">黑名单IP (blackip.rule)</option>
+                                <option value="whiteip.rule">白名单IP (whiteip.rule)</option>
+                                <option value="whiteurl.rule">白名单URL (whiteurl.rule)</option>
+                                <option value="useragentforcc.rule">CC白名单User-Agent (useragentforcc.rule)</option>
+                            </select>
+                        </div>
+                        <div id="rule-content">
+                            <!-- 规则内容将通过JavaScript加载 -->
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-primary" id="add-rule">添加规则</button>
+                            <button class="btn btn-success" id="save-rules">保存规则</button>
+                            <div class="alert alert-info mt-3" role="alert">
+                                注意：保存规则后需要重启Nginx才能生效
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 日志设置标签 -->
+            <div class="tab-pane fade" id="logs" role="tabpanel" aria-labelledby="logs-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">日志设置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">日志忽略白名单</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="log-whitelist-enabled">
+                                <label class="form-check-label" for="log-whitelist-enabled">
+                                    启用日志忽略白名单（使用白名单IP和白名单URL规则）
+                                </label>
+                            </div>
+                            <button class="btn btn-primary mt-3" id="save-log-settings">保存设置</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 添加规则模态框 -->
+    <div class="modal fade" id="addRuleModal" tabindex="-1" aria-labelledby="addRuleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addRuleModalLabel">添加规则</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="new-rule" class="form-label">规则内容（正则表达式）</label>
+                        <input type="text" class="form-control" id="new-rule" placeholder="例如：\bSELECT\b.*\bFROM\b">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="confirm-add-rule">添加</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 初始化Bootstrap标签页
+        const mainTabs = new bootstrap.Tab(document.getElementById('mainTabs'));
+        
+        // 初始化图表
+        const chart = echarts.init(document.getElementById('chart-container'));
+        
+        // 获取统计数据
+        function getStats() {
+            axios.get('/api/stats')
+                .then(response => {
+                    const data = response.data;
+                    
+                    // 更新表格数据
+                    document.getElementById('req-total').textContent = data.firewall_req_total || 0;
+                    document.getElementById('req-normal').textContent = data.firewall_req_normal || 0;
+                    document.getElementById('req-attack').textContent = data.firewall_req_attack || 0;
+                    document.getElementById('req-white-ip').textContent = data.firewall_req_white_ip || 0;
+                    document.getElementById('req-white-url').textContent = data.firewall_req_white_url || 0;
+                    document.getElementById('req-black-ip').textContent = data.firewall_req_black_ip || 0;
+                    
+                    // 更新图表
+                    const option = {
+                        title: {
+                            text: '请求类型分布',
+                            left: 'center'
+                        },
+                        tooltip: {
+                            trigger: 'item'
+                        },
+                        legend: {
+                            orient: 'vertical',
+                            left: 'left'
+                        },
+                        series: [
+                            {
+                                name: '请求类型',
+                                type: 'pie',
+                                radius: '50%',
+                                data: [
+                                    { value: data.firewall_req_normal || 0, name: '正常请求' },
+                                    { value: data.firewall_req_attack || 0, name: '攻击请求' },
+                                    { value: data.firewall_req_white_ip || 0, name: '白名单IP' },
+                                    { value: data.firewall_req_white_url || 0, name: '白名单URL' }
+                                ],
+                                emphasis: {
+                                    itemStyle: {
+                                        shadowBlur: 10,
+                                        shadowOffsetX: 0,
+                                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                                    }
+                                }
+                            }
+                        ]
+                    };
+                    chart.setOption(option);
+                })
+                .catch(error => {
+                    console.error('获取统计数据失败:', error);
+                });
+        }
+        
+        // 加载规则文件
+        function loadRules() {
+            const ruleFile = document.getElementById('rule-file').value;
+            axios.get(`/api/rules/${ruleFile}`)
+                .then(response => {
+                    const rules = response.data;
+                    const ruleContent = document.getElementById('rule-content');
+                    ruleContent.innerHTML = '';
+                    
+                    rules.forEach((rule, index) => {
+                        const ruleItem = document.createElement('div');
+                        ruleItem.className = 'rule-item';
+                        ruleItem.innerHTML = `
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>规则 ${index + 1}</span>
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-danger delete-rule" data-index="${index}">删除</button>
+                                </div>
+                            </div>
+                            <div class="rule-content">
+                                <input type="text" class="form-control rule-input" value="${rule}">
+                            </div>
+                        `;
+                        ruleContent.appendChild(ruleItem);
+                    });
+                    
+                    // 添加删除规则事件
+                    document.querySelectorAll('.delete-rule').forEach(button => {
+                        button.addEventListener('click', function() {
+                            const index = this.getAttribute('data-index');
+                            this.closest('.rule-item').remove();
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('加载规则失败:', error);
+                });
+        }
+        
+        // 保存规则
+        function saveRules() {
+            const ruleFile = document.getElementById('rule-file').value;
+            const ruleInputs = document.querySelectorAll('.rule-input');
+            const rules = Array.from(ruleInputs).map(input => input.value);
+            
+            axios.post(`/api/rules/${ruleFile}`, { rules })
+                .then(response => {
+                    alert('规则保存成功！');
+                })
+                .catch(error => {
+                    console.error('保存规则失败:', error);
+                    alert('规则保存失败！');
+                });
+        }
+        
+        // 保存日志设置
+        function saveLogSettings() {
+            const enabled = document.getElementById('log-whitelist-enabled').checked;
+            
+            axios.post('/api/log-settings', { enabled })
+                .then(response => {
+                    alert('日志设置保存成功！');
+                })
+                .catch(error => {
+                    console.error('保存日志设置失败:', error);
+                    alert('日志设置保存失败！');
+                });
+        }
+        
+        // 初始化事件监听
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取统计数据
+            getStats();
+            setInterval(getStats, 5000); // 每5秒更新一次
+            
+            // 加载规则
+            loadRules();
+            document.getElementById('rule-file').addEventListener('change', loadRules);
+            
+            // 保存规则
+            document.getElementById('save-rules').addEventListener('click', saveRules);
+            
+            // 添加规则
+            document.getElementById('add-rule').addEventListener('click', function() {
+                const modal = new bootstrap.Modal(document.getElementById('addRuleModal'));
+                modal.show();
+            });
+            
+            document.getElementById('confirm-add-rule').addEventListener('click', function() {
+                const newRule = document.getElementById('new-rule').value;
+                if (newRule) {
+                    const ruleContent = document.getElementById('rule-content');
+                    const ruleCount = ruleContent.children.length;
+                    const ruleItem = document.createElement('div');
+                    ruleItem.className = 'rule-item';
+                    ruleItem.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>规则 ${ruleCount + 1}</span>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-danger delete-rule" data-index="${ruleCount}">删除</button>
+                            </div>
+                        </div>
+                        <div class="rule-content">
+                            <input type="text" class="form-control rule-input" value="${newRule}">
+                        </div>
+                    `;
+                    ruleContent.appendChild(ruleItem);
+                    
+                    // 添加删除事件
+                    ruleItem.querySelector('.delete-rule').addEventListener('click', function() {
+                        this.closest('.rule-item').remove();
+                    });
+                    
+                    // 关闭模态框
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('addRuleModal'));
+                    modal.hide();
+                    document.getElementById('new-rule').value = '';
+                }
+            });
+            
+            // 保存日志设置
+            document.getElementById('save-log-settings').addEventListener('click', saveLogSettings);
+        });
+    </script>
+</body>
+</html>
