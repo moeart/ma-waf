@@ -64,6 +64,9 @@
                 <button class="nav-link" id="rules-tab" data-bs-toggle="tab" data-bs-target="#rules" type="button" role="tab" aria-controls="rules" aria-selected="false">规则管理</button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="config-tab" data-bs-toggle="tab" data-bs-target="#config" type="button" role="tab" aria-controls="config" aria-selected="false">配置管理</button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button" role="tab" aria-controls="logs" aria-selected="false">日志设置</button>
             </li>
         </ul>
@@ -154,6 +157,165 @@
                             <div class="alert alert-info mt-3" role="alert">
                                 注意：保存规则后需要重启Nginx才能生效
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 配置管理标签 -->
+            <div class="tab-pane fade" id="config" role="tabpanel" aria-labelledby="config-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">配置管理</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <h6>基础设置</h6>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="config-waf-enable">
+                                <label class="form-check-label" for="config-waf-enable">
+                                    启用WAF
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6>路径设置</h6>
+                            <div class="mb-2">
+                                <label for="config-log-dir" class="form-label">日志目录</label>
+                                <input type="text" class="form-control" id="config-log-dir">
+                            </div>
+                            <div class="mb-2">
+                                <label for="config-rule-dir" class="form-label">规则目录</label>
+                                <input type="text" class="form-control" id="config-rule-dir">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6>检测开关</h6>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="config-header-check">
+                                <label class="form-check-label" for="config-header-check">
+                                    Header检测
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="config-referer-check">
+                                <label class="form-check-label" for="config-referer-check">
+                                    Referer检测
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="config-white-url-check">
+                                <label class="form-check-label" for="config-white-url-check">
+                                    白名单URL检测
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="config-white-ip-check">
+                                <label class="form-check-label" for="config-white-ip-check">
+                                    白名单IP检测
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="config-black-ip-check">
+                                <label class="form-check-label" for="config-black-ip-check">
+                                    黑名单IP检测
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="config-url-check">
+                                <label class="form-check-label" for="config-url-check">
+                                    URL检测
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="config-url-args-check">
+                                <label class="form-check-label" for="config-url-args-check">
+                                    URL参数检测
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="config-user-agent-check">
+                                <label class="form-check-label" for="config-user-agent-check">
+                                    User-Agent检测
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="config-cookie-check">
+                                <label class="form-check-label" for="config-cookie-check">
+                                    Cookie检测
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="config-post-check">
+                                <label class="form-check-label" for="config-post-check">
+                                    POST检测
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="config-cc-check">
+                                <label class="form-check-label" for="config-cc-check">
+                                    CC攻击防护
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6>CC防护设置</h6>
+                            <div class="mb-2">
+                                <label for="config-cc-mode" class="form-label">CC防护模式</label>
+                                <select class="form-select" id="config-cc-mode">
+                                    <option value="ip">IP模式</option>
+                                    <option value="ipurl">IP+URL模式</option>
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label for="config-cc-rate-ip" class="form-label">IP模式限流 (次数/秒数)</label>
+                                <input type="text" class="form-control" id="config-cc-rate-ip" placeholder="例如: 1000/600">
+                            </div>
+                            <div class="mb-2">
+                                <label for="config-cc-rate-ipurl" class="form-label">IP+URL模式限流 (次数/秒数)</label>
+                                <input type="text" class="form-control" id="config-cc-rate-ipurl" placeholder="例如: 20/60">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6>拦截设置</h6>
+                            <div class="mb-2">
+                                <label for="config-waf-model" class="form-label">拦截模式</label>
+                                <select class="form-select" id="config-waf-model">
+                                    <option value="reset">重置连接</option>
+                                    <option value="redirect">重定向</option>
+                                    <option value="html">返回HTML页面</option>
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label for="config-waf-redirect-url" class="form-label">重定向URL</label>
+                                <input type="text" class="form-control" id="config-waf-redirect-url">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6>安全设置</h6>
+                            <div class="mb-2">
+                                <label for="config-security-token" class="form-label">安全Token</label>
+                                <input type="text" class="form-control" id="config-security-token">
+                            </div>
+                            <div class="mb-2">
+                                <label for="config-security-table" class="form-label">自定义编码表</label>
+                                <input type="text" class="form-control" id="config-security-table">
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button class="btn btn-primary" id="save-config">保存配置</button>
+                            <button class="btn btn-warning" id="restart-nginx">重启Nginx</button>
+                            <button class="btn btn-secondary" id="reload-config">重新加载配置</button>
+                        </div>
+                        
+                        <div class="alert alert-info mt-3" role="alert">
+                            注意：保存配置后需要重启Nginx才能生效。如果无法重启Nginx，请手动重启。
                         </div>
                     </div>
                 </div>
@@ -335,6 +497,105 @@
                 });
         }
         
+        // 加载配置
+        function loadConfig() {
+            axios.get('/api/config')
+                .then(response => {
+                    const config = response.data;
+                    
+                    document.getElementById('config-waf-enable').checked = config.config_waf_enable === 'on';
+                    document.getElementById('config-log-dir').value = config.config_log_dir || '';
+                    document.getElementById('config-rule-dir').value = config.config_rule_dir || '';
+                    document.getElementById('config-header-check').checked = config.config_header_check === 'on';
+                    document.getElementById('config-referer-check').checked = config.config_referer_check === 'on';
+                    document.getElementById('config-white-url-check').checked = config.config_white_url_check === 'on';
+                    document.getElementById('config-white-ip-check').checked = config.config_white_ip_check === 'on';
+                    document.getElementById('config-black-ip-check').checked = config.config_black_ip_check === 'on';
+                    document.getElementById('config-url-check').checked = config.config_url_check === 'on';
+                    document.getElementById('config-url-args-check').checked = config.config_url_args_check === 'on';
+                    document.getElementById('config-user-agent-check').checked = config.config_user_agent_check === 'on';
+                    document.getElementById('config-cookie-check').checked = config.config_cookie_check === 'on';
+                    document.getElementById('config-post-check').checked = config.config_post_check === 'on';
+                    document.getElementById('config-cc-check').checked = config.config_cc_check === 'on';
+                    document.getElementById('config-cc-mode').value = config.config_cc_mode || 'ip';
+                    document.getElementById('config-cc-rate-ip').value = config.config_cc_rate_ip || '';
+                    document.getElementById('config-cc-rate-ipurl').value = config.config_cc_rate_ipurl || '';
+                    document.getElementById('config-waf-model').value = config.config_waf_model || 'reset';
+                    document.getElementById('config-waf-redirect-url').value = config.config_waf_redirect_url || '';
+                    document.getElementById('config-security-token').value = config.firewall_security_token || '';
+                    document.getElementById('config-security-table').value = config.firewall_security_table || '';
+                })
+                .catch(error => {
+                    console.error('加载配置失败:', error);
+                });
+        }
+        
+        // 保存配置
+        function saveConfig() {
+            const config = {
+                config_waf_enable: document.getElementById('config-waf-enable').checked ? 'on' : 'off',
+                config_log_dir: document.getElementById('config-log-dir').value,
+                config_rule_dir: document.getElementById('config-rule-dir').value,
+                config_header_check: document.getElementById('config-header-check').checked ? 'on' : 'off',
+                config_referer_check: document.getElementById('config-referer-check').checked ? 'on' : 'off',
+                config_white_url_check: document.getElementById('config-white-url-check').checked ? 'on' : 'off',
+                config_white_ip_check: document.getElementById('config-white-ip-check').checked ? 'on' : 'off',
+                config_black_ip_check: document.getElementById('config-black-ip-check').checked ? 'on' : 'off',
+                config_url_check: document.getElementById('config-url-check').checked ? 'on' : 'off',
+                config_url_args_check: document.getElementById('config-url-args-check').checked ? 'on' : 'off',
+                config_user_agent_check: document.getElementById('config-user-agent-check').checked ? 'on' : 'off',
+                config_cookie_check: document.getElementById('config-cookie-check').checked ? 'on' : 'off',
+                config_post_check: document.getElementById('config-post-check').checked ? 'on' : 'off',
+                config_cc_check: document.getElementById('config-cc-check').checked ? 'on' : 'off',
+                config_cc_mode: document.getElementById('config-cc-mode').value,
+                config_cc_rate_ip: document.getElementById('config-cc-rate-ip').value,
+                config_cc_rate_ipurl: document.getElementById('config-cc-rate-ipurl').value,
+                config_waf_model: document.getElementById('config-waf-model').value,
+                config_waf_redirect_url: document.getElementById('config-waf-redirect-url').value,
+                firewall_security_token: document.getElementById('config-security-token').value,
+                firewall_security_table: document.getElementById('config-security-table').value
+            };
+            
+            axios.post('/api/config', config)
+                .then(response => {
+                    if (response.data.success) {
+                        alert('配置保存成功！请重启Nginx使配置生效。');
+                    } else {
+                        alert('配置保存失败：' + (response.data.message || '未知错误'));
+                    }
+                })
+                .catch(error => {
+                    console.error('保存配置失败:', error);
+                    alert('配置保存失败！');
+                });
+        }
+        
+        // 重启Nginx
+        function restartNginx() {
+            if (!confirm('确定要重启Nginx吗？这将导致短暂的服务中断。')) {
+                return;
+            }
+            
+            axios.post('/api/restart-nginx')
+                .then(response => {
+                    if (response.data.success) {
+                        alert('Nginx重启成功！');
+                    } else {
+                        alert('Nginx重启失败：' + (response.data.message || '未知错误') + '\n请手动重启Nginx使配置生效。');
+                    }
+                })
+                .catch(error => {
+                    console.error('重启Nginx失败:', error);
+                    alert('无法通过Web界面重启Nginx。\n请手动重启Nginx使配置生效。');
+                });
+        }
+        
+        // 重新加载配置
+        function reloadConfig() {
+            loadConfig();
+            alert('配置已重新加载！');
+        }
+        
         // 初始化事件监听
         document.addEventListener('DOMContentLoaded', function() {
             // 获取统计数据
@@ -344,6 +605,18 @@
             // 加载规则
             loadRules();
             document.getElementById('rule-file').addEventListener('change', loadRules);
+            
+            // 加载配置
+            loadConfig();
+            
+            // 保存配置
+            document.getElementById('save-config').addEventListener('click', saveConfig);
+            
+            // 重启Nginx
+            document.getElementById('restart-nginx').addEventListener('click', restartNginx);
+            
+            // 重新加载配置
+            document.getElementById('reload-config').addEventListener('click', reloadConfig);
             
             // 保存规则
             document.getElementById('save-rules').addEventListener('click', saveRules);
