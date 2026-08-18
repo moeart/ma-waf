@@ -26,10 +26,8 @@
     "config_expire_time": 600,
     "config_output_html": "<meta charset=\"utf-8\"/><pre>\n\n      错误代码：MA-SEC-MAID401\n\n      错误描述：您的操作未被授权\n\n      错误来源：您(%s) <-> 萌绘图站女仆酱\n    </pre>",
 
-    "___security": "安全设置",
-    "firewall_security_token": "security_token_default",
-    "firewall_security_table": "Zabcdef6789GHIJKLtuvDEFMNOPQRS01234YghijklXmnoBCTUVAWpqrswxyz5+/",
-    "config_log_whitelist_enable": "on",
+    "___logging": "日志设置",
+    "logging_skip_whitelist": "on",
 
     "___admin_whitelist": "管理面板访问白名单(留空 = 允许所有)",
     "admin_whitelist": ["127.0.0.1", "::1"]

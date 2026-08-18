@@ -1,1 +1,107 @@
-[{"Id":46,"RuleType":"post","RuleItem":"\\.\\./"},{"Id":47,"RuleType":"post","RuleItem":"select.+(from|limit)"},{"Id":48,"RuleType":"post","RuleItem":"(?:(union(.*?)select))"},{"Id":49,"RuleType":"post","RuleItem":"having|rongjitest"},{"Id":50,"RuleType":"post","RuleItem":"sleep\\((\\s*)(\\d*)(\\s*)\\)"},{"Id":51,"RuleType":"post","RuleItem":"benchmark\\((.*)\\,(.*)\\)"},{"Id":52,"RuleType":"post","RuleItem":"base64_decode\\("},{"Id":53,"RuleType":"post","RuleItem":"(?:from\\W+information_schema\\W)"},{"Id":54,"RuleType":"post","RuleItem":"(?:(?:current_)user|database|schema|connection_id)\\s*\\("},{"Id":55,"RuleType":"post","RuleItem":"(?:etc\\/\\W*passwd)"},{"Id":56,"RuleType":"post","RuleItem":"into(\\s+)+(?:dump|out)file\\s*"},{"Id":57,"RuleType":"post","RuleItem":"group\\s+by.+\\("},{"Id":58,"RuleType":"post","RuleItem":"xwork.MethodAccessor"},{"Id":59,"RuleType":"post","RuleItem":"(?:define|eval|file_get_contents|include|require|require_once|shell_exec|phpinfo|system|passthru|preg_\\w+|execute|echo|print|print_r|var_dump|(fp)open|alert|showmodaldialog)\\("},{"Id":60,"RuleType":"post","RuleItem":"xwork\\.MethodAccessor"},{"Id":61,"RuleType":"post","RuleItem":"(gopher|doc|php|glob|file|phar|zlib|ftp|ldap|dict|ogg|data)\\:\\/"},{"Id":62,"RuleType":"post","RuleItem":"java\\.lang"},{"Id":63,"RuleType":"post","RuleItem":"\\$_(GET|post|cookie|files|session|env|phplib|GLOBALS|SERVER)\\["},{"Id":64,"RuleType":"post","RuleItem":"</?(iframe|script|body|img|layer|div|meta|style|base|object|input|audio|video|canvas|svg|footer|article)"},{"Id":65,"RuleType":"post","RuleItem":"((onmouseover|onerror|onload)\\=|foo=bar|acunetix_wvs_security_test)"},{"Id":77,"RuleType":"url","RuleItem":"(.)*(jndi|date|java|marker|ctx|lower|upper|jndi|jndi|main|jvmrunargs|sys|env|log4j|rmi|ldap)(.)*(rmi|ldap)(.)*"}]
+[
+    {
+        "Id": 975,
+        "RuleType": "deny_post",
+        "RuleItem": "\\.\\./"
+    },
+    {
+        "Id": 976,
+        "RuleType": "deny_post",
+        "RuleItem": "select.+(from|limit)"
+    },
+    {
+        "Id": 977,
+        "RuleType": "deny_post",
+        "RuleItem": "(?:(union(.*?)select))"
+    },
+    {
+        "Id": 978,
+        "RuleType": "deny_post",
+        "RuleItem": "having|rongjitest"
+    },
+    {
+        "Id": 979,
+        "RuleType": "deny_post",
+        "RuleItem": "sleep\\((\\s*)(\\d*)(\\s*)\\)"
+    },
+    {
+        "Id": 980,
+        "RuleType": "deny_post",
+        "RuleItem": "benchmark\\((.*)\\,(.*)\\)"
+    },
+    {
+        "Id": 981,
+        "RuleType": "deny_post",
+        "RuleItem": "base64_decode\\("
+    },
+    {
+        "Id": 982,
+        "RuleType": "deny_post",
+        "RuleItem": "(?:from\\W+information_schema\\W)"
+    },
+    {
+        "Id": 983,
+        "RuleType": "deny_post",
+        "RuleItem": "(?:(?:current_)user|database|schema|connection_id)\\s*\\("
+    },
+    {
+        "Id": 984,
+        "RuleType": "deny_post",
+        "RuleItem": "(?:etc\\/\\W*passwd)"
+    },
+    {
+        "Id": 985,
+        "RuleType": "deny_post",
+        "RuleItem": "into(\\s+)+(?:dump|out)file\\s*"
+    },
+    {
+        "Id": 986,
+        "RuleType": "deny_post",
+        "RuleItem": "group\\s+by.+\\("
+    },
+    {
+        "Id": 987,
+        "RuleType": "deny_post",
+        "RuleItem": "xwork.MethodAccessor"
+    },
+    {
+        "Id": 988,
+        "RuleType": "deny_post",
+        "RuleItem": "(?:define|eval|file_get_contents|include|require|require_once|shell_exec|phpinfo|system|passthru|preg_\\w+|execute|echo|print|print_r|var_dump|(fp)open|alert|showmodaldialog)\\("
+    },
+    {
+        "Id": 989,
+        "RuleType": "deny_post",
+        "RuleItem": "xwork\\.MethodAccessor"
+    },
+    {
+        "Id": 990,
+        "RuleType": "deny_post",
+        "RuleItem": "(gopher|doc|php|glob|file|phar|zlib|ftp|ldap|dict|ogg|data)\\:\\/"
+    },
+    {
+        "Id": 991,
+        "RuleType": "deny_post",
+        "RuleItem": "java\\.lang"
+    },
+    {
+        "Id": 992,
+        "RuleType": "deny_post",
+        "RuleItem": "\\$_(GET|post|cookie|files|session|env|phplib|GLOBALS|SERVER)\\["
+    },
+    {
+        "Id": 993,
+        "RuleType": "deny_post",
+        "RuleItem": "</?(iframe|script|body|img|layer|div|meta|style|base|object|input|audio|video|canvas|svg|footer|article)"
+    },
+    {
+        "Id": 994,
+        "RuleType": "deny_post",
+        "RuleItem": "((onmouseover|onerror|onload)\\=|foo=bar|acunetix_wvs_security_test)"
+    },
+    {
+        "Id": 995,
+        "RuleType": "deny_post",
+        "RuleItem": "(.)*(jndi|date|java|marker|ctx|lower|upper|jndi|jndi|main|jvmrunargs|sys|env|log4j|rmi|ldap)(.)*(rmi|ldap)(.)*"
+    }
+]

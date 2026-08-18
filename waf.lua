@@ -81,63 +81,6 @@ function _M.system_share_info_init()
     end
 end
 
--- 系统记录读取接口_json
-function _M.system_share_info_readall()
-    local method = ngx.req.get_method()
-    local result_table = {}
-    local args = nil
-    local result = nil
-    
-    if "GET" == method then
-        args = ngx.req.get_uri_args()
-    elseif "POST" == method then
-        ngx.req.read_body()
-        args = ngx.req.get_post_args()
-    end
-    
-    -- 检查是否为内部API调用（/api/stats路径）
-    local uri = ngx.var.uri
-    local is_internal_api = uri == "/api/stats"
-    
-    -- 允许内部API调用或带有有效token的请求
-    if is_internal_api or (args["token"] ~= nil and util.security_check(args["token"])) then
-        -- 检查通过，返回数据
-
-        -- good
-        result_table["firewall_req_total"] = system_info:get("firewall_req_total")
-        -- firewall_req_normal 考虑在前端自行计算汇总
-        result_table["firewall_req_normal"] = system_info:get("firewall_req_normal")
-        result_table["firewall_req_white_ip"] = system_info:get("firewall_req_white_ip")
-        result_table["firewall_req_white_url"] = system_info:get("firewall_req_white_url")
-
-        --- bad
-        result_table["firewall_req_attack"] = system_info:get("firewall_req_attack")
-        result_table["firewall_req_black_ip"] = system_info:get("firewall_req_black_ip")
-        result_table["firewall_req_header"] = system_info:get("firewall_req_header")
-        result_table["firewall_req_referer"] = system_info:get("firewall_req_referer")
-        result_table["firewall_req_cc"] = system_info:get("firewall_req_cc")
-        result_table["firewall_req_cookie"] = system_info:get("firewall_req_cookie")
-        result_table["firewall_req_url"] = system_info:get("firewall_req_url")
-        result_table["firewall_req_url_args"] = system_info:get("firewall_req_url_args")
-        result_table["firewall_req_ua"] = system_info:get("firewall_req_ua")
-        result_table["firewall_req_post"] = system_info:get("firewall_req_post")
-
-        -- info
-        result_table["firewall_reload_count"] = system_info:get("firewall_reload_count")
-        
-        result = util.security_token_encode(cjson.encode(result_table))
-    else
-        result = 'args is null.'
-    end
-
-    -- 回收空间
-    result_table = nil
-    args = nil
-    method = nil
-    
-    return result
-end
-
 -- 系统记录设置
 function _M.system_share_info_set(key,value)
     system_info:set(key,value)
@@ -231,7 +174,7 @@ function _M.white_ip_check()
             for _, rule in pairs(IP_WHITE_RULE) do
                 if rule ~= "" and iputils.ip_in_cidr(WHITE_IP, rule) then
                     _M.system_share_info_incr("firewall_req_white_ip")
-                    util.log_record(config.config_log_dir,'White_IP', ngx.var_request_uri, "_", "_")
+                    util.log_record(config.config_log_dir,'White_IP', ngx.var.request_uri, "_", "_")
                     return true
                 end
             end
@@ -262,7 +205,7 @@ function _M.black_ip_check()
             for _, rule in pairs(IP_BLACK_RULE) do
                 if rule ~= "" and iputils.ip_in_cidr(BLACK_IP, rule) then
                     _M.system_share_attack_info_incr("firewall_req_black_ip")
-                    util.log_record(config.config_log_dir,'BlackList_IP', ngx.var_request_uri, "_", "_")
+                    util.log_record(config.config_log_dir,'BlackList_IP', ngx.var.request_uri, "_", "_")
                     if config.config_waf_enable == "on" then
                         ngx.exit(403)
                         return true

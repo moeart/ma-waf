@@ -1,1 +1,22 @@
-[{"RuleItem":"(HTTrack|harvest|audit|dirbuster|pangolin|nmap|sqln|-scan|hydra|Parser|libwww|BBBike|sqlmap|w3af|owasp|Nikto|fimap|havij|PycURL|zmeu|BabyKrokodil|netsparker|httperf|bench)"},{"RuleItem":"(.)*(jndi|date|java|marker|ctx|lower|upper|jndi|jndi|main|jvmrunargs|sys|env|log4j|rmi|ldap)(.)*(rmi|ldap)(.)*"},{"RuleItem":"(?i)(SERankingBacklinksBot|Bytespider|SemrushBot|Applebot|Amazonbot|AhrefsBot|GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-SearchBot|Claude-User|PerplexityBot|Perplexity-User|Google-Extended|Applebot-Extended|meta-externalagent|meta-webindexer|CCBot|ErnieBot|TongyiBot|DoubaoBot|SparkDeskBot|TianGongBot|KimiBot|ChatGLMBot|DeepSeekBot|HunyuanBot|YiBot|StepFunBot|MiniMaxBot|ByteDance-AIBot|Baidu-AIBot|Alibaba-AIBot|Tencent-AIBot|GeminiBot|CopilotBot|MS-Copilot-User|YouBot|CohereBot|Anthropic-Scraper|JasperBot|CopyAI-Bot|MidjourneyBot|Reddit-ExternalAgent|X-AIBot|meta-ai-scraper|AI2Bot|MajesticBot|MozBot|DotBot|MJ12bot|BLEXBot|DataForSeoBot|SeobilityBot|ScreamingFrogSEO-Spider|LinkResearchToolsBot|UbersuggestBot|BotifyBot|OncrawlBot|ContentKingBot|NetcraftSurveyAgent|PingdomBot|GTmetrixBot|InternetArchiveBot|Archive.org_bot|Diffbot|OctoparseBot|Import.io|ParseHub|HTTrack|Wget|cURL|PhantomJS|HeadlessChrome|ScrapyBot|Python-urllib|Python-requests|Go-http-client|Java-http-client|Ruby-Net::HTTP|PHP-http-client|Node-fetch|Axios|DomainCrawler|LinkpadBot)"},{"RuleItem":"(Firefox|Chrome)\/[2-7][0-9\\.]"}]
+[
+    {
+        "Id": 949,
+        "RuleType": "deny_ua",
+        "RuleItem": "(HTTrack|harvest|audit|dirbuster|pangolin|nmap|sqln|-scan|hydra|Parser|libwww|BBBike|sqlmap|w3af|owasp|Nikto|fimap|havij|PycURL|zmeu|BabyKrokodil|netsparker|httperf|bench)"
+    },
+    {
+        "Id": 950,
+        "RuleType": "deny_ua",
+        "RuleItem": "(.)*(jndi|date|java|marker|ctx|lower|upper|jndi|jndi|main|jvmrunargs|sys|env|log4j|rmi|ldap)(.)*(rmi|ldap)(.)*"
+    },
+    {
+        "Id": 951,
+        "RuleType": "deny_ua",
+        "RuleItem": "(?i)(SERankingBacklinksBot|Bytespider|SemrushBot|Applebot|Amazonbot|AhrefsBot|GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-SearchBot|Claude-User|PerplexityBot|Perplexity-User|Google-Extended|Applebot-Extended|meta-externalagent|meta-webindexer|CCBot|ErnieBot|TongyiBot|DoubaoBot|SparkDeskBot|TianGongBot|KimiBot|ChatGLMBot|DeepSeekBot|HunyuanBot|YiBot|StepFunBot|MiniMaxBot|ByteDance-AIBot|Baidu-AIBot|Alibaba-AIBot|Tencent-AIBot|GeminiBot|CopilotBot|MS-Copilot-User|YouBot|CohereBot|Anthropic-Scraper|JasperBot|CopyAI-Bot|MidjourneyBot|Reddit-ExternalAgent|X-AIBot|meta-ai-scraper|AI2Bot|MajesticBot|MozBot|DotBot|MJ12bot|BLEXBot|DataForSeoBot|SeobilityBot|ScreamingFrogSEO-Spider|LinkResearchToolsBot|UbersuggestBot|BotifyBot|OncrawlBot|ContentKingBot|NetcraftSurveyAgent|PingdomBot|GTmetrixBot|InternetArchiveBot|Archive.org_bot|Diffbot|OctoparseBot|Import.io|ParseHub|HTTrack|Wget|cURL|PhantomJS|HeadlessChrome|ScrapyBot|Python-urllib|Python-requests|Go-http-client|Java-http-client|Ruby-Net::HTTP|PHP-http-client|Node-fetch|Axios|DomainCrawler|LinkpadBot)"
+    },
+    {
+        "Id": 952,
+        "RuleType": "deny_ua",
+        "RuleItem": "(Firefox|Chrome)/[2-7][0-9\\.]"
+    }
+]

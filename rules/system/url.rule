@@ -1,33 +1,42 @@
-[{
-	"Id": 66,
-	"RuleType": "url",
-	"RuleItem": "\\.(htaccess|bash_history)"
-}, {
-	"Id": 66,
-	"RuleType": "url",
-	"RuleItem": "\\.php.*"
-}, {
-	"Id": 67,
-	"RuleType": "url",
-	"RuleItem": "\\.(bak|inc|old|mdb|sql|backup|java|class|tgz|gz|tar|zip|rar|action|do|asp|aspx|jsp)$"
-}, {
-	"Id": 68,
-	"RuleType": "url",
-	"RuleItem": "(admin|manager|phpmyadmin|jmx-console|admin-console|jmxinvokerservlet|acunetix-wvs-test-for-some-inexistent-file)"
-}, {
-	"Id": 69,
-	"RuleType": "url",
-	"RuleItem": "(java\\.lang|(.*\\.(jsp|asp|aspx)))"
-}, {
-	"Id": 70,
-	"RuleType": "url",
-	"RuleItem": "\\.(svn|git|sql|bak|vscode|ftpconfig)\\/"
-}, {
-	"Id": 71,
-	"RuleType": "url",
-	"RuleItem": "/(attachments|upimg|images|css|uploadfiles|html|uploads|templets|static|template|data|inc|forumdata|upload|includes|cache|avatar)/(\\\\w+).(php|jsp|asp|aspx)"
-}, {
-	"Id": 77,
-	"RuleType": "url",
-	"RuleItem": "(.)*(jndi|date|java|marker|ctx|lower|upper|jndi|jndi|main|jvmrunargs|sys|env|log4j|rmi|ldap)(.)*(rmi|ldap)(.)*"
-}]
+[
+    {
+        "Id": 917,
+        "RuleType": "deny_url",
+        "RuleItem": "\\.(htaccess|bash_history)"
+    },
+    {
+        "Id": 918,
+        "RuleType": "deny_url",
+        "RuleItem": "\\.php.*"
+    },
+    {
+        "Id": 919,
+        "RuleType": "deny_url",
+        "RuleItem": "\\.(bak|inc|old|mdb|sql|backup|java|class|tgz|gz|tar|zip|rar|action|do|asp|aspx|jsp)$"
+    },
+    {
+        "Id": 920,
+        "RuleType": "deny_url",
+        "RuleItem": "(admin|manager|phpmyadmin|jmx-console|admin-console|jmxinvokerservlet|acunetix-wvs-test-for-some-inexistent-file)"
+    },
+    {
+        "Id": 921,
+        "RuleType": "deny_url",
+        "RuleItem": "(java\\.lang|(.*\\.(jsp|asp|aspx)))"
+    },
+    {
+        "Id": 922,
+        "RuleType": "deny_url",
+        "RuleItem": "\\.(svn|git|sql|bak|vscode|ftpconfig)\\/"
+    },
+    {
+        "Id": 923,
+        "RuleType": "deny_url",
+        "RuleItem": "/(attachments|upimg|images|css|uploadfiles|html|uploads|templets|static|template|data|inc|forumdata|upload|includes|cache|avatar)/(\\\\w+).(php|jsp|asp|aspx)"
+    },
+    {
+        "Id": 924,
+        "RuleType": "deny_url",
+        "RuleItem": "(.)*(jndi|date|java|marker|ctx|lower|upper|jndi|jndi|main|jvmrunargs|sys|env|log4j|rmi|ldap)(.)*(rmi|ldap)(.)*"
+    }
+]

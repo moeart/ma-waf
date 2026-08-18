@@ -70,6 +70,96 @@ local function html_response(html)
     ngx.exit(200)
 end
 
+local function read_rule_file(file)
+    local path = plugin_dir .. "/rules/" .. file
+    local f = io.open(path, "r")
+    if not f then return {} end
+    local content = f:read("*a")
+    f:close()
+    if not content or content == "" then return {} end
+    local ok, rules = pcall(cjson.decode, content)
+    if not ok or type(rules) ~= "table" then return {} end
+    return rules
+end
+
+local function write_rule_file(file, rules)
+    local path = plugin_dir .. "/rules/" .. file
+    local tmp_path = path .. ".tmp"
+    local json = cjson.encode(rules)
+    
+    local f, err = io.open(tmp_path, "w")
+    if not f then return false, "写入临时文件失败: " .. (err or "unknown") end
+    f:write(json)
+    f:close()
+    
+    local ok, err = os.rename(tmp_path, path)
+    if not ok then
+        local f2, err2 = io.open(path, "w")
+        if f2 then
+            f2:write(json)
+            f2:close()
+            pcall(os.remove, tmp_path)
+        else
+            return false, "写入原文件失败: " .. (err2 or "unknown")
+        end
+    end
+    return true
+end
+
+local RULE_FILES_META = {
+    { name = "blackip.rule", title = "黑名单 IP", kind = "ip", desc = "IP 或 CIDR，命中即 403", ruletype = "blackip" },
+    { name = "whiteip.rule", title = "白名单 IP", kind = "ip", desc = "IP 或 CIDR，命中跳过全部检测", ruletype = "whiteip" },
+    { name = "whiteurl.rule", title = "白名单 URL", kind = "regex", desc = "host+uri 正则，命中放行", ruletype = "whiteurl" },
+    { name = "useragentforcc.rule", title = "CC-UA 白名单", kind = "regex", desc = "UA 正则，命中后 CC 切 ipurl 模式", ruletype = "cc_ua_ipurl" },
+    { name = "system/header.rule", title = "Header 规则", kind = "regex", desc = "请求头名正则匹配", ruletype = "deny_header" },
+    { name = "system/referer.rule", title = "Referer 规则", kind = "regex", desc = "Referer 正则匹配", ruletype = "deny_referer" },
+    { name = "system/url.rule", title = "URL 规则", kind = "regex", desc = "请求 URI 正则匹配", ruletype = "deny_url" },
+    { name = "system/args.rule", title = "参数规则", kind = "regex", desc = "URL 参数值正则匹配", ruletype = "deny_args" },
+    { name = "system/useragent.rule", title = "User-Agent 规则", kind = "regex", desc = "User-Agent 正则匹配", ruletype = "deny_ua" },
+    { name = "system/cookie.rule", title = "Cookie 规则", kind = "regex", desc = "Cookie 正则匹配", ruletype = "deny_cookie" },
+    { name = "system/post.rule", title = "POST 规则", kind = "regex", desc = "POST body 正则匹配", ruletype = "deny_post" },
+}
+
+local RULE_FILES_META_BY_NAME = {}
+for _, v in ipairs(RULE_FILES_META) do RULE_FILES_META_BY_NAME[v.name] = v end
+
+local RULE_FILES_WHITELIST = {}
+for _, v in ipairs(RULE_FILES_META) do RULE_FILES_WHITELIST[v.name] = true end
+
+local function generate_next_id()
+    local max_id = 0
+    for _, meta in ipairs(RULE_FILES_META) do
+        local rules = read_rule_file(meta.name)
+        for _, rule in ipairs(rules) do
+            if type(rule) == "table" and rule.Id and rule.Id > max_id then
+                max_id = rule.Id
+            end
+        end
+    end
+    return max_id + 1
+end
+
+local function validate_rule(rule, kind)
+    if not rule or type(rule) ~= "string" or rule == "" then
+        return "规则内容不能为空"
+    end
+    if #rule > 2048 then
+        return "规则内容过长"
+    end
+    if kind == "ip" then
+        local lower, err = iputils.parse_cidr(rule)
+        if not lower then
+            return "无效的 IP/CIDR: " .. rule
+        end
+    else
+        local _, err = ngx.re.find("ruletest", rule, "jo")
+        if err then
+            return "无效的正则表达式: " .. rule .. " (" .. tostring(err) .. ")"
+        end
+    end
+    return nil
+end
+
 -- ============================================================
 -- HTML Templates
 -- ============================================================
@@ -165,6 +255,7 @@ local NAV = [[
   <div class="nav-links">
     <a href="/cgi-waf/status" id="nav-status">状态</a>
     <a href="/cgi-waf/config" id="nav-config">配置</a>
+    <a href="/cgi-waf/rules" id="nav-rules">规则</a>
   </div>
 </nav>
 ]]
@@ -360,20 +451,6 @@ local CONFIG_HTML = [[<!DOCTYPE html>
   </div>
 
   <div class="section">
-    <h3>安全设置</h3>
-    <div class="form-row">
-      <div class="form-group">
-        <label>安全 Token</label>
-        <input type="text" id="cfg-security-token">
-      </div>
-      <div class="form-group">
-        <label>自定义编码表</label>
-        <input type="text" id="cfg-security-table">
-      </div>
-    </div>
-  </div>
-
-  <div class="section">
     <h3>管理员白名单</h3>
     <p style="font-size:13px;color:var(--text2);margin-bottom:12px">允许访问此管理面板的 IP 地址（支持 CIDR），留空则允许所有</p>
     <div class="tag-list" id="whitelist-tags"></div>
@@ -395,7 +472,7 @@ var toggles=[
   ['config_user_agent_check','User-Agent 检测'],['config_cookie_check','Cookie 检测'],
   ['config_post_check','POST 检测'],['config_cc_check','CC 攻击防护'],
   ['config_white_ip_check','白名单 IP'],['config_white_url_check','白名单 URL'],
-  ['config_black_ip_check','黑名单 IP'],['config_log_whitelist_enable','日志白名单过滤']
+  ['config_black_ip_check','黑名单 IP'],  ['logging_skip_whitelist','日志白名单过滤']
 ];
 var tg=document.getElementById('toggle-grid');
 toggles.forEach(function(t){
@@ -427,8 +504,6 @@ function loadConfig(){
     document.getElementById('cfg-cc-mode').value=c.config_cc_mode||'ip';
     document.getElementById('cfg-cc-rate-ip').value=c.config_cc_rate_ip||'';
     document.getElementById('cfg-cc-rate-ipurl').value=c.config_cc_rate_ipurl||'';
-    document.getElementById('cfg-security-token').value=c.firewall_security_token||'';
-    document.getElementById('cfg-security-table').value=c.firewall_security_table||'';
     toggles.forEach(function(t){var _k=t[0];var el=document.getElementById(_k);if(el)el.checked=c[_k]==='on'});
     wlData=c.admin_whitelist||[];renderWl();
   }).catch(function(e){toast('加载配置失败: '+e.message,false)});
@@ -442,8 +517,6 @@ function saveConfig(){
   cfg.config_cc_mode=document.getElementById('cfg-cc-mode').value;
   cfg.config_cc_rate_ip=document.getElementById('cfg-cc-rate-ip').value;
   cfg.config_cc_rate_ipurl=document.getElementById('cfg-cc-rate-ipurl').value;
-  cfg.firewall_security_token=document.getElementById('cfg-security-token').value;
-  cfg.firewall_security_table=document.getElementById('cfg-security-table').value;
   cfg.admin_whitelist=wlData;
   toggles.forEach(function(t){var _k=t[0];var el=document.getElementById(_k);cfg[_k]=el&&el.checked?'on':'off'});
   fetch('/cgi-waf/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)})
@@ -454,6 +527,234 @@ function saveConfig(){
 }
 document.getElementById('nav-config').classList.add('active');
 loadConfig();
+</script>
+</body></html>]]
+
+-- ============================================================
+-- Rules Page
+-- ============================================================
+
+local RULES_CSS = [[
+<style>
+  .rule-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  .rule-tab { padding: 8px 16px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); cursor: pointer; font-size: 13px; font-weight: 500; }
+  .rule-tab:hover { background: var(--border); }
+  .rule-tab.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .rule-header { margin-bottom: 16px; }
+  .rule-desc { font-size: 13px; color: var(--text2); margin-bottom: 8px; }
+  .rule-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; }
+  .rule-table th { text-align: left; padding: 10px 14px; background: var(--bg); font-weight: 600; color: var(--text2); border-bottom: 1px solid var(--border); }
+  .rule-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .rule-table input { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .rule-add-area { margin-top: 16px; padding: 16px; background: var(--bg); border-radius: 8px; border: 1px dashed var(--border); }
+  .invalid input { border-color: var(--danger); }
+  .error-msg { color: var(--danger); font-size: 12px; margin-top: 4px; }
+  .sticky-bottom { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; padding: 16px 24px; box-shadow: 0 -2px 4px rgba(0,0,0,0.05); z-index: 100; display: flex; justify-content: space-between; align-items: center; }
+</style>
+]]
+
+local RULES_HTML = [[<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>]] .. PROJECT .. [[ - 规则</title>
+<style>body{margin-bottom:80px}</style>
+]] .. CSS .. RULES_CSS .. [[
+</head><body>
+]] .. NAV .. [[
+<main>
+  <div class="section">
+    <div class="rule-tabs" id="rule-tabs"></div>
+    <div id="rule-content"></div>
+  </div>
+</main>
+<div class="sticky-bottom" id="rule-footer">
+  <div id="rule-status" style="font-size:13px;font-weight:500">加载中...</div>
+  <div style="display:flex;gap:12px">
+    <button class="btn btn-secondary" onclick="loadRules()">放弃更改</button>
+    <button class="btn btn-primary" id="save-rule-btn" disabled onclick="saveCurrentRule()">保存此文件</button>
+  </div>
+</div>
+]] .. SHARED_JS .. [[
+<script>
+var META = [];
+var allData = {};
+var currentFile = null;
+var hasChanges = false;
+
+function init(){
+  loadRules();
+}
+
+function loadRules(){
+  fetch('/cgi-waf/api/rules').then(function(r){return r.json()}).then(function(d){
+    META = d.files;
+    META.forEach(function(f){ allData[f.name] = f.rules.slice(); });
+    var container = document.getElementById('rule-tabs');
+    while(container.firstChild) container.removeChild(container.firstChild);
+    META.forEach(function(f){
+      var btn = document.createElement('div');
+      btn.className = 'rule-tab';
+      btn.textContent = f.title;
+      btn.onclick = function(){selectFile(f.name)};
+      container.appendChild(btn);
+    });
+    if(currentFile && allData[currentFile]){
+      selectFile(currentFile, true);
+    } else if(META.length>0){
+      selectFile(META[0].name);
+    }
+  }).catch(function(e){toast('加载规则失败: '+e.message, false)});
+}
+
+function selectFile(name, skipConfirm){
+  if(!skipConfirm && hasChanges && !confirm('当前文件有未保存的更改，确定要切换吗？')) return;
+  currentFile = name;
+  hasChanges = false;
+  updateFooter();
+  var btns = document.querySelectorAll('.rule-tab');
+  META.forEach(function(f, i){
+    if(f.name===name) btns[i].classList.add('active');
+    else btns[i].classList.remove('active');
+  });
+  renderTable();
+}
+
+function renderTable(){
+  var file = META.find(function(f){return f.name===currentFile});
+  var rules = allData[currentFile];
+  
+  var h = '<div class="rule-header">';
+  h += '<h3 style="font-size:16px;margin-bottom:8px;color:var(--text)">' + file.title + '</h3>';
+  h += '<p class="rule-desc">匹配对象：' + file.desc + '</p></div>';
+  
+  h += '<table class="rule-table"><thead><tr>';
+  h += '<th style="width:40px">#</th>';
+  h += '<th style="width:100px">Id</th>';
+  h += '<th style="width:120px">RuleType</th>';
+  h += '<th>RuleItem</th>';
+  h += '<th style="width:120px">操作</th>';
+  h += '</tr></thead><tbody>';
+  
+  rules.forEach(function(r, i){
+    h += '<tr>';
+    h += '<td>' + (i+1) + '</td>';
+    h += '<td>' + (r.Id||'') + '</td>';
+    h += '<td>' + (r.RuleType||'') + '</td>';
+    h += '<td>' + escapeHtml(r.RuleItem) + '</td>';
+    h += '<td><button class="btn btn-secondary" style="padding:4px 8px;margin-right:4px" onclick="editRule(' + i + ')">编辑</button>';
+    h += '<button class="btn btn-danger" style="padding:4px 8px" onclick="deleteRule(' + i + ')">删除</button></td>';
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  
+  h += '<div class="rule-add-area">';
+  h += '<div style="font-size:14px;font-weight:600;margin-bottom:12px">添加新规则</div>';
+  h += '<div style="display:flex;gap:8px;align-items:center">';
+  h += '<input id="new-item" placeholder="' + (file.kind==='ip'?'IP 或 CIDR':'正则表达式') + '" style="flex:1">';
+  h += '<button class="btn btn-primary" onclick="addRule()">添加</button>';
+  h += '</div></div>';
+  
+  document.getElementById('rule-content').innerHTML = h;
+  validateNewInputs();
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function editRule(idx){
+  var r = allData[currentFile][idx];
+  var table = document.querySelector('.rule-table tbody');
+  var tr = table.children[idx];
+  
+  var h = '<td>' + (idx+1) + '</td>';
+  h += '<td>' + (r.Id||'') + '</td>';
+  h += '<td>' + (r.RuleType||'') + '</td>';
+  h += '<td><input id="edit-item" value="' + escapeHtml(r.RuleItem) + '" style="width:100%"></td>';
+  h += '<td><button class="btn btn-primary" style="padding:4px 8px;margin-right:4px" onclick="saveEdit(' + idx + ')">确定</button>';
+  h += '<button class="btn btn-secondary" style="padding:4px 8px" onclick="renderTable()">取消</button></td>';
+  
+  tr.innerHTML = h;
+}
+
+function saveEdit(idx){
+  var item = document.getElementById('edit-item').value.trim();
+  if(!item){ toast('规则内容不能为空', false); return; }
+  
+  allData[currentFile][idx].RuleItem = item;
+  hasChanges = true;
+  updateFooter();
+  renderTable();
+}
+
+function deleteRule(idx){
+  if(!confirm('确定删除此规则？')) return;
+  allData[currentFile].splice(idx, 1);
+  hasChanges = true;
+  updateFooter();
+  renderTable();
+}
+
+function addRule(){
+  var item = document.getElementById('new-item').value.trim();
+  if(!item){ toast('规则内容不能为空', false); return; }
+  
+  allData[currentFile].push({RuleItem: item});
+  hasChanges = true;
+  updateFooter();
+  
+  document.getElementById('new-item').value = '';
+  renderTable();
+}
+
+function updateFooter(){
+  if(hasChanges){
+    document.getElementById('rule-status').textContent = '当前文件有未保存的更改';
+    document.getElementById('save-rule-btn').disabled = false;
+  } else {
+    document.getElementById('rule-status').textContent = '无更改';
+    document.getElementById('save-rule-btn').disabled = true;
+  }
+}
+
+function validateNewInputs(){
+  var item = document.getElementById('new-item');
+  if(item){
+    item.onblur = function(){
+      var val = this.value.trim();
+      if(!val) return;
+      var file = META.find(function(f){return f.name===currentFile});
+      if(file.kind==='ip'){
+        this.style.borderColor = /^\d+\.\d+\.\d+\.\d+(\/\d+)?$/.test(val) ? 'var(--success)' : 'var(--danger)';
+      } else {
+        try { new RegExp(val); this.style.borderColor = 'var(--success)'; }
+        catch(e) { this.style.borderColor = 'var(--danger)'; }
+      }
+    };
+    item.onkeydown = function(e){ if(e.key==='Enter'){e.preventDefault(); addRule();} };
+  }
+}
+
+function saveCurrentRule(){
+  if(!currentFile) return;
+  fetch('/cgi-waf/api/rules?file=' + encodeURIComponent(currentFile), {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({rules: allData[currentFile]})
+  }).then(function(r){return r.json()}).then(function(d){
+    if(d.success){
+      toast(d.message, true);
+      hasChanges = false;
+      updateFooter();
+    } else {
+      var msg = d.message || (d.errors ? d.errors.map(function(e){return '第'+e.index+'条: '+e.error}).join(', ') : '未知错误');
+      toast('保存失败: ' + msg, false);
+    }
+  }).catch(function(e){toast('请求失败: '+e.message, false)});
+}
+
+document.getElementById('nav-rules').classList.add('active');
+init();
 </script>
 </body></html>]]
 
@@ -555,9 +856,81 @@ local function handle_check(ip)
     return json_response(result)
 end
 
--- ============================================================
--- Router
--- ============================================================
+local function handle_api_rules_get()
+    local result = { files = {} }
+    for _, meta in ipairs(RULE_FILES_META) do
+        local rules = read_rule_file(meta.name)
+        table.insert(result.files, {
+            name = meta.name,
+            title = meta.title,
+            kind = meta.kind,
+            desc = meta.desc,
+            rules = rules
+        })
+    end
+    return json_response(result)
+end
+
+local function handle_api_rules_get_one(file)
+    if not RULE_FILES_WHITELIST[file] then
+        return json_response({error = "invalid_file", message = "文件名非法"}, 400)
+    end
+    local rules = read_rule_file(file)
+    return json_response({ rules = rules })
+end
+
+local function handle_api_rules_save(file)
+    if not RULE_FILES_WHITELIST[file] then
+        return json_response({error = "invalid_file", message = "文件名非法"}, 400)
+    end
+    local meta = RULE_FILES_META_BY_NAME[file]
+    ngx.req.read_body()
+    local body = ngx.req.get_body_data()
+    if not body then return json_response({success = false, message = "请求体为空"}, 400) end
+    
+    local ok, data = pcall(cjson.decode, body)
+    if not ok or type(data) ~= "table" or type(data.rules) ~= "table" then
+        return json_response({success = false, message = "JSON 格式错误，需要 {rules: [...]} 的结构"}, 400)
+    end
+    
+    local errors = {}
+    local next_id = generate_next_id()
+    for i, rule in ipairs(data.rules) do
+        if type(rule) ~= "table" then
+            table.insert(errors, {index = i, error = "规则项必须是对象 {RuleItem: '...'}"})
+        else
+            local item = rule.RuleItem
+            local err = validate_rule(item, meta.kind)
+            if err then
+                table.insert(errors, {index = i, error = err})
+            end
+        end
+    end
+    
+    if #errors > 0 then
+        return json_response({success = false, errors = errors}, 400)
+    end
+    
+    local out = {}
+    for _, rule in ipairs(data.rules) do
+        local obj = {RuleItem = rule.RuleItem}
+        if rule.Id and type(rule.Id) == "number" and rule.Id > 0 then
+            obj.Id = rule.Id
+        else
+            obj.Id = next_id
+            next_id = next_id + 1
+        end
+        obj.RuleType = meta.ruletype
+        table.insert(out, obj)
+    end
+    
+    local write_ok, err = write_rule_file(file, out)
+    if not write_ok then
+        return json_response({success = false, message = "保存失败: " .. (err or "")}, 500)
+    end
+    
+    return json_response({success = true, message = "已保存 " .. #out .. " 条规则"})
+end
 
 function _M.run()
     local uri = ngx.var.uri
@@ -577,12 +950,31 @@ function _M.run()
         return html_response(STATUS_HTML)
     elseif uri == "/cgi-waf/config" then
         return html_response(CONFIG_HTML)
+    elseif uri == "/cgi-waf/rules" then
+        return html_response(RULES_HTML)
     elseif uri == "/cgi-waf/api/config" then
         local method = ngx.req.get_method()
         if method == "GET" then
             return handle_api_config_get()
         elseif method == "POST" then
             return handle_api_config_save()
+        else
+            return json_response({error = "method_not_allowed"}, 405)
+        end
+    elseif uri == "/cgi-waf/api/rules" then
+        local method = ngx.req.get_method()
+        local file = ngx.var.arg_file
+        if method == "GET" then
+            if file then
+                return handle_api_rules_get_one(file)
+            else
+                return handle_api_rules_get()
+            end
+        elseif method == "POST" then
+            if not file then
+                return json_response({error = "missing_param", message = "缺少 file 参数"}, 400)
+            end
+            return handle_api_rules_save(file)
         else
             return json_response({error = "method_not_allowed"}, 405)
         end
