@@ -27,29 +27,42 @@ end
 -- Utility
 -- ============================================================
 
-local function get_client_ip()
-    return ngx.req.get_headers()["X-Real-Ip"]
-        or ngx.req.get_headers()["X-Forwarded-For"]
-        or ngx.var.remote_addr
-        or ""
-end
-
 local function ip_in_list(ip, list)
     if not list then return false end
     for _, entry in ipairs(list) do
         if entry ~= "" then
             if entry == ip then return true end
-            local ok, _ = pcall(function() return iputils.ip_in_cidr(ip, entry) end)
-            if ok then return true end
+            local ok, matched = pcall(function() return iputils.ip_in_cidr(ip, entry) end)
+            if ok and matched then return true end
         end
     end
     return false
 end
 
+local function get_admin_ip()
+    local remote = ngx.var.remote_addr or ""
+    local trusted = config.admin_trusted_proxies
+    if trusted and #trusted > 0 then
+        local xff = ngx.req.get_headers()["X-Forwarded-For"]
+        if xff then
+            local first = xff:match("^([^,]+)")
+            if first then first = first:match("^%s*(.-)%s*$") end
+            if first and ip_in_list(remote, trusted) then
+                return first
+            end
+        end
+        local xri = ngx.req.get_headers()["X-Real-Ip"]
+        if xri and ip_in_list(remote, trusted) then
+            return xri
+        end
+    end
+    return remote
+end
+
 local function admin_check()
     local wl = config.admin_whitelist
     if not wl or #wl == 0 then return true end
-    return ip_in_list(get_client_ip(), wl)
+    return ip_in_list(get_admin_ip(), wl)
 end
 
 local function json_response(obj, status)
@@ -256,6 +269,7 @@ local NAV = [[
     <a href="/cgi-waf/status" id="nav-status">状态</a>
     <a href="/cgi-waf/config" id="nav-config">配置</a>
     <a href="/cgi-waf/rules" id="nav-rules">规则</a>
+    <a href="/cgi-waf/logs" id="nav-logs">日志</a>
   </div>
 </nav>
 ]]
@@ -302,6 +316,20 @@ local STATUS_HTML = [[<!DOCTYPE html>
   <div class="section">
     <h3>系统信息</h3>
     <div class="detail-grid" id="sys-info"></div>
+  </div>
+  <div class="section" id="history-section" style="margin-top:24px;border-top:2px solid var(--border);padding-top:24px">
+    <h3 style="margin-bottom:12px">历史统计 <span style="font-size:12px;color:var(--text2);font-weight:normal">来自日志文件</span></h3>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn btn-secondary hist-btn" data-days="1">今天</button>
+      <button class="btn btn-primary hist-btn" data-days="7">近 7 天</button>
+      <button class="btn btn-secondary hist-btn" data-days="30">近 30 天</button>
+      <span id="hist-status" style="font-size:12px;color:var(--text2);line-height:36px;margin-left:8px"></span>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">
+      <div id="hist-trend" style="flex:2;min-width:300px;height:220px;border:1px solid var(--border);border-radius:8px;padding:8px"></div>
+      <div id="hist-pie" style="flex:1;min-width:200px;height:220px;border:1px solid var(--border);border-radius:8px;padding:8px"></div>
+    </div>
+    <div id="hist-top-ips" style="font-size:13px"></div>
   </div>
 </main>
 ]] .. SHARED_JS .. [[
@@ -360,7 +388,7 @@ function renderSys(s){
   document.getElementById('sys-info').innerHTML=h;
 }
 function refresh(){
-  fetch('/cgi-waf/api/stats').then(function(r){return r.json()}).then(function(s){
+  fetch('/cgi-waf/api/stats?t='+Date.now()).then(function(r){return r.json()}).then(function(s){
     var t=s.firewall_req_total||0,a=s.firewall_req_attack||0,n=s.firewall_req_normal||0;
     document.getElementById('m-total').textContent=fmt(t);
     document.getElementById('m-normal').textContent=fmt(n);
@@ -382,6 +410,38 @@ function refresh(){
   }).catch(function(){});
 }
 document.getElementById('nav-status').classList.add('active');
+// --- History ---
+var histTrendChart=null,histPieChart=null;
+function initHistCharts(){
+  if(typeof echarts==='undefined')return;
+  histTrendChart=echarts.init(document.getElementById('hist-trend'));
+  histPieChart=echarts.init(document.getElementById('hist-pie'));
+  window.addEventListener('resize',function(){histTrendChart&&histTrendChart.resize();histPieChart&&histPieChart.resize()});
+}
+function loadHistory(days){
+  document.querySelectorAll('.hist-btn').forEach(function(b){
+    b.className=b.getAttribute('data-days')==days?'btn btn-primary hist-btn':'btn btn-secondary hist-btn';
+  });
+  fetch('/cgi-waf/api/history?days='+days+'&t='+Date.now()).then(function(r){return r.json()}).then(function(d){
+    document.getElementById('hist-status').textContent='截至 '+d.totals.attacks+' 次攻击';
+    if(!histTrendChart||!histPieChart){initHistCharts()}
+    if(histTrendChart){
+      var dates=[],attacks=[],whl=[];
+      d.days.forEach(function(dd){dates.push(dd.date);attacks.push(dd.attacks);whl.push(dd.whitelist_hits)});
+      histTrendChart.setOption({tooltip:{trigger:'axis'},legend:{data:['攻击','白名单命中'],textStyle:{fontSize:11}},grid:{left:40,right:16,top:30,bottom:24},xAxis:{type:'category',data:dates,axisLabel:{fontSize:10}},yAxis:{type:'value',axisLabel:{fontSize:10}},series:[{name:'攻击',type:'line',data:attacks,smooth:true,areaStyle:{opacity:0.15},itemStyle:{color:'#e74c3c'}},{name:'白名单命中',type:'line',data:whl,smooth:true,areaStyle:{opacity:0.1},itemStyle:{color:'#3498db'}}]});
+    }
+    if(histPieChart){
+      var pieData=[];for(var m in d.totals.by_method){pieData.push({name:m,value:d.totals.by_method[m]})}
+      histPieChart.setOption({tooltip:{trigger:'item',formatter:'{b}: {c} ({d}%)'},series:[{type:'pie',radius:['35%','65%'],data:pieData,label:{fontSize:11}}]});
+    }
+    var ipHtml='<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:6px">IP</th><th style="text-align:right;padding:6px">次数</th></tr>';
+    (d.totals.top_ips||[]).forEach(function(r){ipHtml+='<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px">'+r[0]+'</td><td style="text-align:right;padding:6px">'+r[1]+'</td></tr>'});
+    ipHtml+='</table>';
+    document.getElementById('hist-top-ips').innerHTML=ipHtml;
+  }).catch(function(e){document.getElementById('hist-status').textContent='加载失败: '+e.message});
+}
+document.querySelectorAll('.hist-btn').forEach(function(b){b.addEventListener('click',function(){loadHistory(this.getAttribute('data-days'))})});
+initHistCharts();loadHistory(7);
 initCharts();refresh();setInterval(refresh,10000);
 </script>
 </body></html>]]
@@ -460,6 +520,16 @@ local CONFIG_HTML = [[<!DOCTYPE html>
     </div>
   </div>
 
+  <div class="section">
+    <h3>受信任反向代理</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">面板位于反向代理后时，必须把反代 IP 加入此列表，否则管理员会被 404 拦截。仅当 direct IP 在此列表时才解析 X-Forwarded-For / X-Real-Ip 头部。</p>
+    <div class="tag-list" id="tp-tags"></div>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="tp-input" placeholder="输入反代 IP 或 CIDR，回车添加" style="flex:1">
+      <button class="btn btn-secondary" onclick="addTp()">添加</button>
+    </div>
+  </div>
+
   <div class="btn-group">
     <button class="btn btn-primary" onclick="saveConfig()">保存配置</button>
   </div>
@@ -495,6 +565,23 @@ function addWl(){
   inp.value='';
 }
 document.getElementById('wl-input').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();addWl()}});
+var tpData=[];
+function renderTp(){
+  var c=document.getElementById('tp-tags');c.innerHTML='';
+  tpData.forEach(function(ip,i){
+    var s=document.createElement('span');s.className='tag';s.textContent=ip;
+    s.style.background='var(--brand-light)';s.style.color='var(--brand)';
+    s.onclick=function(){tpData.splice(i,1);renderTp()};
+    c.appendChild(s);
+  });
+}
+function addTp(){
+  var inp=document.getElementById('tp-input');
+  var v=inp.value.trim();
+  if(v&&tpData.indexOf(v)===-1){tpData.push(v);renderTp()}
+  inp.value='';
+}
+document.getElementById('tp-input').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();addTp()}});
 function loadConfig(){
   fetch('/cgi-waf/api/config').then(function(r){return r.json()}).then(function(c){
     document.getElementById('cfg-waf-enable').value=c.config_waf_enable||'on';
@@ -506,6 +593,7 @@ function loadConfig(){
     document.getElementById('cfg-cc-rate-ipurl').value=c.config_cc_rate_ipurl||'';
     toggles.forEach(function(t){var _k=t[0];var el=document.getElementById(_k);if(el)el.checked=c[_k]==='on'});
     wlData=c.admin_whitelist||[];renderWl();
+    tpData=c.admin_trusted_proxies||[];renderTp();
   }).catch(function(e){toast('加载配置失败: '+e.message,false)});
 }
 function saveConfig(){
@@ -518,6 +606,7 @@ function saveConfig(){
   cfg.config_cc_rate_ip=document.getElementById('cfg-cc-rate-ip').value;
   cfg.config_cc_rate_ipurl=document.getElementById('cfg-cc-rate-ipurl').value;
   cfg.admin_whitelist=wlData;
+  cfg.admin_trusted_proxies=tpData;
   toggles.forEach(function(t){var _k=t[0];var el=document.getElementById(_k);cfg[_k]=el&&el.checked?'on':'off'});
   fetch('/cgi-waf/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)})
     .then(function(r){return r.json()}).then(function(d){
@@ -758,6 +847,106 @@ init();
 </script>
 </body></html>]]
 
+local LOGS_HTML = [[<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>]] .. PROJECT .. [[ - 日志</title>
+]] .. CSS .. [[
+</head><body>
+]] .. NAV .. [[
+<main>
+  <div class="section">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+      <select id="log-days" style="padding:8px;border:1px solid var(--border);border-radius:6px">
+        <option value="7">近 7 天</option><option value="14">近 14 天</option><option value="30" selected>近 30 天</option><option value="90">近 90 天</option>
+      </select>
+      <button class="btn btn-secondary" onclick="loadFiles()">刷新</button>
+      <span style="font-size:13px;color:var(--text2)" id="log-status"></span>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap">
+      <div style="min-width:220px;max-width:300px;flex:1">
+        <div id="file-list" style="border:1px solid var(--border);border-radius:8px;max-height:60vh;overflow-y:auto"></div>
+      </div>
+      <div style="flex:2;min-width:300px">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+          <input type="text" id="log-filter" placeholder="过滤关键词..." style="flex:1;min-width:120px;padding:8px;border:1px solid var(--border);border-radius:6px">
+          <select id="log-lines" style="padding:8px;border:1px solid var(--border);border-radius:6px">
+            <option value="100">100 行</option><option value="200" selected>200 行</option><option value="500">500 行</option><option value="1000">1000 行</option>
+          </select>
+          <label style="font-size:13px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="log-auto"> 自动刷新</label>
+        </div>
+        <div id="log-content" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;max-height:55vh;overflow:auto">选择左侧日志文件查看内容</div>
+      </div>
+    </div>
+  </div>
+  <p style="font-size:12px;color:var(--text2);margin-top:12px">日志为逐行 JSON（表格自动解析）；WAF 每日日志仅在命中规则时产生。</p>
+</main>
+]] .. SHARED_JS .. [==[
+<script>
+document.getElementById('nav-logs').classList.add('active');
+var currentFile=null,autoTimer=null;
+function loadFiles(){
+  var days=document.getElementById('log-days').value;
+  fetch('/cgi-waf/api/logs?days='+days+'&t='+Date.now()).then(function(r){return r.json()}).then(function(d){
+    var el=document.getElementById('file-list');el.innerHTML='';
+    if(!d.files||d.files.length===0){el.innerHTML='<div style="padding:16px;color:var(--text2);font-size:13px">无日志文件</div>';return}
+    d.files.forEach(function(f){
+      var row=document.createElement('div');
+      row.style.cssText='padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:13px;transition:background .15s';
+      row.onmouseover=function(){row.style.background='var(--brand-light)'};
+      row.onmouseout=function(){row.style.background=''};
+      var name=document.createElement('span');name.textContent=f.name;
+      var size=document.createElement('span');size.style.cssText='color:var(--text2);font-size:12px';
+      size.textContent=f.size>1048576?(f.size/1048576).toFixed(1)+' MB':(f.size/1024).toFixed(1)+' KB';
+      row.appendChild(name);row.appendChild(size);
+      row.onclick=function(){currentFile=f.name;document.querySelectorAll('#file-list>div').forEach(function(r){r.style.background=''});row.style.background='var(--brand-light)';loadContent()};
+      el.appendChild(row);
+    });
+  }).catch(function(e){document.getElementById('log-status').textContent='加载失败: '+e.message});
+}
+function escHtml(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+var LOG_COLS=[['local_time','时间'],['client_ip','客户端 IP'],['server_name','主机'],['attack_method','事件'],['req_url','URL'],['req_data','数据'],['rule_tag','规则/方法'],['user_agent','UA']];
+function renderLogTable(el,lines){
+  if(!lines||lines.length===0){el.innerHTML='<div style="color:var(--text2);font-size:13px;padding:4px">无日志内容</div>';return}
+  var h='<table style="border-collapse:collapse;font-size:12px;width:100%;white-space:nowrap">';
+  h+='<thead><tr>'+LOG_COLS.map(function(c){return '<th style="text-align:left;padding:6px 8px;background:var(--bg);border:1px solid var(--border);color:var(--text2);position:sticky;top:0;z-index:1">'+escHtml(c[1])+'</th>'}).join('')+'</tr></thead><tbody>';
+  lines.forEach(function(line){
+    var o;try{o=JSON.parse(line)}catch(e){o=null}
+    if(o&&typeof o==='object'&&!Array.isArray(o)){
+      h+='<tr>'+LOG_COLS.map(function(c){
+        var v=o[c[0]];
+        var full=(v==null)?'-':String(v);
+        var s=full;if(s.length>160)s=s.slice(0,160)+'…';
+        return '<td style="padding:6px 8px;border:1px solid var(--border);max-width:360px;overflow:hidden;text-overflow:ellipsis" title="'+escHtml(full)+'">'+escHtml(s)+'</td>';
+      }).join('')+'</tr>';
+    }else{
+      var raw=String(line);if(raw.length>320)raw=raw.slice(0,320)+'…';
+      h+='<tr><td colspan="8" style="padding:6px 8px;border:1px solid var(--border);font-family:Consolas,monospace" title="'+escHtml(line)+'">'+escHtml(raw)+'</td></tr>';
+    }
+  });
+  h+='</tbody></table>';
+  el.innerHTML=h;
+  el.scrollTop=el.scrollHeight;
+}
+function loadContent(){
+  if(!currentFile)return;
+  var lines=document.getElementById('log-lines').value;
+  var filter=document.getElementById('log-filter').value;
+  var url='/cgi-waf/api/log?file='+encodeURIComponent(currentFile)+'&lines='+lines+'&t='+Date.now();
+  if(filter)url+='&filter='+encodeURIComponent(filter);
+  fetch(url).then(function(r){return r.json()}).then(function(d){
+    var el=document.getElementById('log-content');
+    renderLogTable(el,d.lines);
+    document.getElementById('log-status').textContent=d.file+' ('+d.count+' 行'+(d.truncated?' 已截断':'')+')';
+  }).catch(function(e){document.getElementById('log-content').innerHTML='<div style="color:var(--danger);font-size:13px">加载失败: '+escHtml(e.message)+'</div>'});
+}
+document.getElementById('log-filter').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();loadContent()}});
+document.getElementById('log-auto').addEventListener('change',function(){
+  if(this.checked){autoTimer=setInterval(loadContent,5000)}else{clearInterval(autoTimer);autoTimer=null}
+});
+loadFiles();
+</script>
+</body></html>]==]
+
 -- ============================================================
 -- API Handlers
 -- ============================================================
@@ -932,14 +1121,198 @@ local function handle_api_rules_save(file)
     return json_response({success = true, message = "已保存 " .. #out .. " 条规则"})
 end
 
+-- ============================================================
+-- Log Viewing
+-- ============================================================
+
+local LOG_DIR_WAF = plugin_dir .. "/logs"
+
+local function file_ok(name)
+    if not name or name == "" then return false end
+    return name:match("^waf_%d%d%d%d%-%d%d%-%d%d%.log$") ~= nil
+        or name == "waf.error.log"
+end
+
+local function read_tail_lines(path, max_bytes)
+    max_bytes = max_bytes or 4 * 1024 * 1024
+    local f = io.open(path, "r")
+    if not f then return {}, 0, false end
+    f:seek("end")
+    local size = f:seek()
+    local read_size = math.min(size, max_bytes)
+    f:seek("cur", -read_size)
+    local data = f:read(read_size)
+    f:close()
+    if not data then return {}, 0, false end
+    local truncated = size > max_bytes
+    local first_nl = data:find("\n", 1, true)
+    if first_nl and truncated then data = data:sub(first_nl + 1) end
+    local lines = {}
+    for line in (data .. "\n"):gmatch("(.-)\n") do
+        if line ~= "" then lines[#lines + 1] = line end
+    end
+    return lines, size, truncated
+end
+
+local function list_log_files(days)
+    days = math.min(tonumber(days) or 30, 90)
+    local files = {}
+    local now = os.time()
+    for i = 0, days - 1 do
+        local t = now - i * 86400
+        local name = string.format("waf_%s.log", os.date("%Y-%m-%d", t))
+        local path = LOG_DIR_WAF .. "/" .. name
+        local f = io.open(path, "r")
+        if f then
+            f:seek("end")
+            local sz = f:seek()
+            f:close()
+            files[#files + 1] = {name = name, size = sz}
+        end
+    end
+    local err_path = LOG_DIR_WAF .. "/waf.error.log"
+    local f = io.open(err_path, "r")
+    if f then
+        f:seek("end")
+        local sz = f:seek()
+        f:close()
+        files[#files + 1] = {name = "waf.error.log", size = sz}
+    end
+    return files
+end
+
+local function handle_api_logs()
+    local days = tonumber(ngx.var.arg_days) or 30
+    local files = list_log_files(days)
+    return json_response({files = files})
+end
+
+local function handle_api_log()
+    local file = ngx.var.arg_file
+    if not file_ok(file) then
+        return json_response({error = "invalid_file"}, 400)
+    end
+    local lines_val = tonumber(ngx.var.arg_lines) or 200
+    lines_val = math.min(math.max(lines_val, 1), 1000)
+    local filter = ngx.var.arg_filter
+    local path = LOG_DIR_WAF .. "/" .. file
+    local lines, size, truncated = read_tail_lines(path, 4 * 1024 * 1024)
+    if filter and filter ~= "" then
+        local filtered = {}
+        local flt = filter:lower()
+        for _, line in ipairs(lines) do
+            if line:lower():find(flt, 1, true) then
+                filtered[#filtered + 1] = line
+            end
+        end
+        lines = filtered
+    end
+    local count = #lines
+    if count > lines_val then
+        local trimmed = {}
+        for i = count - lines_val + 1, count do
+            trimmed[#trimmed + 1] = lines[i]
+        end
+        lines = trimmed
+    end
+    return json_response({file = file, lines = lines, count = count, truncated = truncated})
+end
+
+local function handle_api_history()
+    local days = tonumber(ngx.var.arg_days) or 7
+    days = math.min(math.max(days, 1), 31)
+    local log_dir = plugin_dir .. "/logs"
+    local now = os.time()
+    local day_results = {}
+    local totals_attacks = 0
+    local totals_by_method = {}
+    local totals_ip_count = {}
+    local totals_url_count = {}
+    for i = days - 1, 0, -1 do
+        local t = now - i * 86400
+        local fname = string.format("waf_%s.log", os.date("%Y-%m-%d", t))
+        local fpath = log_dir .. "/" .. fname
+        local f = io.open(fpath, "r")
+        local day_obj = {date = os.date("%Y-%m-%d", t), found = false,
+                         attacks = 0, whitelist_hits = 0,
+                         by_method = {}, top_ips = {}}
+        if f then
+            day_obj.found = true
+            local ip_count = {}
+            local data = f:read("*a")
+            f:close()
+            if data and data ~= "" then
+                for line in (data .. "\n"):gmatch("(.-)\n") do
+                    if line ~= "" then
+                        local ok, obj = pcall(cjson.decode, line)
+                        if ok and type(obj) == "table" then
+                            local method = obj.attack_method or "Unknown"
+                            if method == "White_IP" then
+                                day_obj.whitelist_hits = day_obj.whitelist_hits + 1
+                            else
+                                day_obj.attacks = day_obj.attacks + 1
+                                day_obj.by_method[method] = (day_obj.by_method[method] or 0) + 1
+                                local ip = obj.client_ip or ""
+                                if ip ~= "" then ip_count[ip] = (ip_count[ip] or 0) + 1 end
+                                local url = obj.req_url or ""
+                                if url ~= "" then totals_url_count[url] = (totals_url_count[url] or 0) + 1 end
+                            end
+                        end
+                    end
+                end
+            end
+            local sorted_ips = {}
+            for ip, cnt in pairs(ip_count) do sorted_ips[#sorted_ips+1] = {ip, cnt} end
+            table.sort(sorted_ips, function(a,b) return a[2] > b[2] end)
+            local top_n = {}
+            for j = 1, math.min(10, #sorted_ips) do top_n[j] = sorted_ips[j] end
+            day_obj.top_ips = top_n
+            totals_attacks = totals_attacks + day_obj.attacks
+            for m, c in pairs(day_obj.by_method) do
+                totals_by_method[m] = (totals_by_method[m] or 0) + c
+            end
+            for ip, c in pairs(ip_count) do
+                totals_ip_count[ip] = (totals_ip_count[ip] or 0) + c
+            end
+        end
+        day_results[#day_results+1] = day_obj
+    end
+    local sorted_totals_ips = {}
+    for ip, cnt in pairs(totals_ip_count) do sorted_totals_ips[#sorted_totals_ips+1] = {ip, cnt} end
+    table.sort(sorted_totals_ips, function(a,b) return a[2] > b[2] end)
+    local top_totals_ips = {}
+    for j = 1, math.min(10, #sorted_totals_ips) do top_totals_ips[j] = sorted_totals_ips[j] end
+    local sorted_totals_urls = {}
+    for url, cnt in pairs(totals_url_count) do sorted_totals_urls[#sorted_totals_urls+1] = {url, cnt} end
+    table.sort(sorted_totals_urls, function(a,b) return a[2] > b[2] end)
+    local top_totals_urls = {}
+    for j = 1, math.min(10, #sorted_totals_urls) do top_totals_urls[j] = sorted_totals_urls[j] end
+    return json_response({
+        unit = "waf",
+        days = day_results,
+        totals = {
+            attacks = totals_attacks,
+            by_method = totals_by_method,
+            top_ips = top_totals_ips,
+            top_urls = top_totals_urls,
+            truncated = false
+        }
+    })
+end
+
 function _M.run()
     local uri = ngx.var.uri
 
     if not admin_check() then
-        ngx.status = 403
+        ngx.log(ngx.WARN, "admin: rejected ip=", get_admin_ip(),
+                            " remote=", ngx.var.remote_addr,
+                            " uri=", ngx.var.uri)
+        ngx.status = 404
         ngx.header["Content-Type"] = "text/html; charset=utf-8"
-        ngx.say("<html><body><h1>403 Forbidden</h1><p>IP " .. get_client_ip() .. " not in admin whitelist.</p></body></html>")
-        return ngx.exit(403)
+        ngx.say("<html><head><title>404 Not Found</title></head>" ..
+                "<body><center><h1>404 Not Found</h1></center>" ..
+                "<hr><center>nginx</center></body></html>")
+        return ngx.exit(404)
     end
 
     if uri == "/cgi-waf" or uri == "/cgi-waf/" then
@@ -981,6 +1354,14 @@ function _M.run()
     elseif uri:match("^/cgi%-waf/check/(.+)$") then
         local ip = uri:match("^/cgi%-waf/check/(.+)$")
         return handle_check(ip)
+    elseif uri == "/cgi-waf/logs" then
+        return html_response(LOGS_HTML)
+    elseif uri == "/cgi-waf/api/logs" then
+        return handle_api_logs()
+    elseif uri == "/cgi-waf/api/log" then
+        return handle_api_log()
+    elseif uri == "/cgi-waf/api/history" then
+        return handle_api_history()
     else
         return ngx.redirect("/cgi-waf/status")
     end

@@ -30,5 +30,8 @@
     "logging_skip_whitelist": "on",
 
     "___admin_whitelist": "管理面板访问白名单(留空 = 允许所有)",
-    "admin_whitelist": ["127.0.0.1", "::1"]
+    "admin_whitelist": ["127.0.0.1", "::1"],
+
+    "___admin_trusted_proxies": "受信任反代 IP 列表(仅当 direct IP 在此列表才解析 XFF, 留空=从不信任头部)",
+    "admin_trusted_proxies": []
 }

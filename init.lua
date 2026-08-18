@@ -25,3 +25,13 @@ waf = require("waf")
 waf_rules = waf.load_rules()
 -- 系统记录初始化
 waf.system_share_info_init()
+
+-- 确保日志目录存在
+local log_dir = "./logs"
+local ok = io.open(log_dir, "r")
+if ok then
+    ok:close()
+else
+    os.execute("mkdir -p " .. log_dir)
+    os.execute("mkdir " .. log_dir)
+end

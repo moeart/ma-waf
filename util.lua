@@ -203,7 +203,7 @@ function _M.log_record(config_log_dir, method, url, data, ruletag)
     }
 
     local log_line = cjson.encode(log_json_obj)
-    local log_name = string.format("%s/%s_waf.log", log_path, ngx.today())
+    local log_name = string.format("%s/waf_%s.log", log_path, os.date("%Y-%m-%d"))
     local file = io.open(log_name, "a")
     if file == nil then
         return
