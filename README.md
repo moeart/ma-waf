@@ -9,7 +9,7 @@
 * 修改规则文件
 * 重启 nginx 完成安装
 * 更新规则库直接 git pull
-* 如需展示统计信息，按照说明修改 nginx.conf 文件，需在配置文件中保留 `lua_shared_dict system_info 10m;`
+* 如需展示统计信息，按照说明修改 nginx.conf 文件，需在配置文件中保留 `lua_shared_dict waf 212m;`
 
 本版本由萌绘图站开发组进行维护，禁止转卖。    
 如需从本版本二次开发，请在 README 中注明出处！

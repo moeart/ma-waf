@@ -23,17 +23,31 @@ THE SOFTWARE.
 local rulematch = ngx.re.find
 local unescape = ngx.unescape_uri
 
-local config = require("config")
 local util = require("util")
 local iputils = require("iputils")
 local cjson = require("cjson")
+
+local config
+do
+    local src = debug.getinfo(1, "S").source
+    local dir = (src:sub(1, 1) == "@" and src:sub(2) or src):match("^(.*)[/\\][^/\\]+$") or "."
+    local f = io.open(dir .. "/config.json", "r")
+    if not f then error("waf: config.json not found: " .. dir) end
+    local content = f:read("*a"); f:close()
+    config = cjson.decode(content)
+    for k in pairs(config) do
+        if k:sub(1, 3) == "___" then config[k] = nil end
+    end
+    config.config_log_dir = dir .. "/logs"
+    config.config_rule_dir = dir .. "/rules"
+end
 
 local _M = {
     RULES = {}
 }
 
 -- 系统记录初始化
-system_info = ngx.shared.system_info
+system_info = ngx.shared.waf
 function _M.system_share_info_init()
     --local system_info = ngx.shared.system_info
     -- 读取标记位，防止 reload 时重新初始化共享区，导致统计数据丢失
@@ -230,7 +244,7 @@ function _M.bad_guy_check()
     local client_ip = util.get_client_ip()
     local ret = false
     if client_ip ~= "" then
-        ret = ngx.shared.badGuys.get(client_ip)
+        ret = ngx.shared.waf:get("bg:" .. client_ip)
         if ret ~= nil and ret > 0 then
             ret = true
         end
@@ -294,7 +308,7 @@ function _M.cc_attack_check()
         -- ip only mode
         local CC_TOKEN = util.get_client_ip()
         local CC_LOGTAG = "CC_Attack_IP"
-        local limit = ngx.shared.limit
+        local limit = ngx.shared.waf
         local CCcount = tonumber(string.match(config.config_cc_rate_ip, '(.*)/'))
         local CCseconds = tonumber(string.match(config.config_cc_rate_ip, '/(.*)'))
         -- ip + url mode
@@ -304,7 +318,7 @@ function _M.cc_attack_check()
             CCcount = tonumber(string.match(config.config_cc_rate_ipurl, '(.*)/'))
             CCseconds = tonumber(string.match(config.config_cc_rate_ipurl, '/(.*)'))
         end
-        local req,_ = limit:get(CC_TOKEN)
+        local req,_ = limit:get("cc:" .. CC_TOKEN)
         if req then
             if req > CCcount then
                 _M.system_share_attack_info_incr("firewall_req_cc")
@@ -313,10 +327,10 @@ function _M.cc_attack_check()
                     ngx.exit(444)
                 end
             else
-                limit:incr(CC_TOKEN, 1)
+                limit:incr("cc:" .. CC_TOKEN, 1)
             end
         else
-            limit:set(CC_TOKEN, 1, CCseconds)
+            limit:set("cc:" .. CC_TOKEN, 1, CCseconds)
         end
     end
     return false
@@ -470,6 +484,30 @@ end
 
 -- waf start
 function _M.check()
+    local uri = ngx.var.uri
+
+    -- WAF 管理面板
+    if uri:sub(1, 8) == "/cgi-waf" then
+        local ok, cgi = pcall(require, "webui")
+        if ok and cgi and cgi.run then return cgi.run() end
+        ngx.status = 500
+        ngx.header["Content-Type"] = "text/plain; charset=utf-8"
+        ngx.say("webui module not found: " .. tostring(cgi))
+        ngx.log(ngx.ERR, "waf: webui load failed: " .. tostring(cgi))
+        return ngx.exit(500)
+    end
+
+    -- RFW 管理面板
+    if uri:sub(1, 8) == "/cgi-rfw" then
+        local ok, rfw = pcall(require, "ma_rfw")
+        if ok and rfw and rfw.run then return rfw.run() end
+        ngx.status = 500
+        ngx.header["Content-Type"] = "text/plain; charset=utf-8"
+        ngx.say("rfw module not found: " .. tostring(rfw))
+        ngx.log(ngx.ERR, "waf: ma_rfw load failed: " .. tostring(rfw))
+        return ngx.exit(500)
+    end
+
     _M.system_share_info_incr("firewall_req_total")
     if _M.white_ip_check() then
     elseif _M.white_url_check() then

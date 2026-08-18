@@ -20,4 +20,31 @@ THE SOFTWARE.
 
 ]]
 
+if ngx.var.uri:sub(1, 8) == "/cgi-waf" then
+    local info = debug.getinfo(1, "S")
+    local src = info.source or ""
+    local filepath = src:match("^@(.*)") or src
+    local dir = filepath:gsub("\\", "/"):match("^(.*)/")
+    if dir then
+        local f = loadfile(dir .. "/webui.lua")
+        if f then
+            local cgi = f()
+            if cgi and cgi.run then return cgi.run() end
+        end
+    end
+    ngx.status = 500
+    ngx.header["Content-Type"] = "text/plain; charset=utf-8"
+    ngx.say("webui module not found")
+    return ngx.exit(500)
+end
+
+if ngx.var.uri:sub(1, 8) == "/cgi-rfw" then
+    local ok, rfw = pcall(require, "ma_rfw")
+    if ok and rfw and rfw.run then return rfw.run() end
+    ngx.status = 500
+    ngx.header["Content-Type"] = "text/plain; charset=utf-8"
+    ngx.say("rfw module not found")
+    return ngx.exit(500)
+end
+
 waf.check()

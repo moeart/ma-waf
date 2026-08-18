@@ -23,7 +23,21 @@ THE SOFTWARE.
 local io = require("io")
 local cjson = require("cjson")
 local string = require("string")
-local config = require("config")
+
+local config
+do
+    local src = debug.getinfo(1, "S").source
+    local dir = (src:sub(1, 1) == "@" and src:sub(2) or src):match("^(.*)[/\\][^/\\]+$") or "."
+    local f = io.open(dir .. "/config.json", "r")
+    if not f then error("util: config.json not found: " .. dir) end
+    local content = f:read("*a"); f:close()
+    config = cjson.decode(content)
+    for k in pairs(config) do
+        if k:sub(1, 3) == "___" then config[k] = nil end
+    end
+    config.config_log_dir = dir .. "/logs"
+    config.config_rule_dir = dir .. "/rules"
+end
 
 local _M = {
     version = "0.1",
@@ -234,6 +248,11 @@ end
 
 -- Get all rule file name
 function _M.get_rule_files(rules_path)
+    if not rules_path then
+        local src = debug.getinfo(1, "S").source
+        local dir = (src:sub(1, 1) == "@" and src:sub(2) or src):match("^(.*)[/\\][^/\\]+$") or "."
+        rules_path = dir .. "/rules"
+    end
     local rule_files = {}
     for _, file in ipairs(_M.RULE_FILES) do
         if file ~= "" then
@@ -395,12 +414,12 @@ end
 
 -- set bad guys ip to ngx.shared dict
 function _M.set_bad_guys(bad_guy_ip, expire_time)
-    local badGuys = ngx.shared.badGuys
-    local req, _ = badGuys:get(bad_guy_ip)
+    local waf_dict = ngx.shared.waf
+    local req, _ = waf_dict:get("bg:" .. bad_guy_ip)
     if req then
-        badGuys:incr(bad_guy_ip, 1)
+        waf_dict:incr("bg:" .. bad_guy_ip, 1)
     else
-        badGuys:set(bad_guy_ip, 1, expire_time)
+        waf_dict:set("bg:" .. bad_guy_ip, 1, expire_time)
     end
 end
 
