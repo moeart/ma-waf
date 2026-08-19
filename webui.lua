@@ -5,7 +5,7 @@ local iputils = require("iputils")
 
 local _M = {}
 
-local VERSION = "1.0.0"
+local VERSION = "1.2.0"
 local PROJECT = "MA-WAF"
 local BRAND_COLOR = "#3b82f6"
 
@@ -13,14 +13,20 @@ local src = debug.getinfo(1, "S").source
 local plugin_dir = (src:sub(1, 1) == "@" and src:sub(2) or src):match("^(.*)[/\\][^/\\]+$") or "."
 
 local config
+local config_comments = {}
 do
     local f = io.open(plugin_dir .. "/config.json", "r")
     if not f then error("webui: config.json not found: " .. plugin_dir) end
     local content = f:read("*a"); f:close()
     config = cjson.decode(content)
-    for k in pairs(config) do
-        if k:sub(1, 3) == "___" then config[k] = nil end
+    local comment_keys = {}
+    for k, v in pairs(config) do
+        if k:sub(1, 2) == "__" then
+            config_comments[k] = v
+            comment_keys[#comment_keys + 1] = k
+        end
     end
+    for _, k in ipairs(comment_keys) do config[k] = nil end
 end
 
 -- ============================================================
@@ -229,6 +235,7 @@ tr:last-child td{border-bottom:none}
 .tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:500}
 .tag-green{background:#d1fae5;color:#065f46}
 .tag-red{background:#fee2e2;color:#991b1b}
+.tag-yellow{background:#fef3c7;color:#92400e}
 .form-group{margin-bottom:20px}
 .form-group label{display:block;font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
@@ -633,10 +640,16 @@ local RULES_CSS = [[
   .rule-desc { font-size: 13px; color: var(--text2); margin-bottom: 8px; }
   .rule-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; }
   .rule-table th { text-align: left; padding: 10px 14px; background: var(--bg); font-weight: 600; color: var(--text2); border-bottom: 1px solid var(--border); }
-  .rule-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
-  .rule-table input { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; }
+  .rule-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .rule-table th:last-child, .rule-table td:last-child { width: 168px; min-width: 168px; }
+  .rule-table input { width: 100%; min-width: 0; height: 38px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--card); color: var(--text); }
   .btn-danger { background: var(--danger); color: #fff; }
+  .rule-actions { display: flex; align-items: center; justify-content: flex-start; gap: 8px; flex-wrap: nowrap; white-space: nowrap; }
+  .rule-btn { padding: 7px 12px; min-width: 54px; border-radius: 8px; font-size: 13px; }
   .rule-add-area { margin-top: 16px; padding: 16px; background: var(--bg); border-radius: 8px; border: 1px dashed var(--border); }
+  .rule-add-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+  .rule-add-row input { width: 100%; min-width: 0; height: 42px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--card); color: var(--text); }
+  .rule-add-row .btn { min-width: 78px; }
   .invalid input { border-color: var(--danger); }
   .error-msg { color: var(--danger); font-size: 12px; margin-top: 4px; }
   .sticky-bottom { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; padding: 16px 24px; box-shadow: 0 -2px 4px rgba(0,0,0,0.05); z-index: 100; display: flex; justify-content: space-between; align-items: center; }
@@ -730,16 +743,16 @@ function renderTable(){
     h += '<td>' + (r.Id||'') + '</td>';
     h += '<td>' + (r.RuleType||'') + '</td>';
     h += '<td>' + escapeHtml(r.RuleItem) + '</td>';
-    h += '<td><button class="btn btn-secondary" style="padding:4px 8px;margin-right:4px" onclick="editRule(' + i + ')">编辑</button>';
-    h += '<button class="btn btn-danger" style="padding:4px 8px" onclick="deleteRule(' + i + ')">删除</button></td>';
+    h += '<td><div class="rule-actions"><button class="btn btn-secondary rule-btn" onclick="editRule(' + i + ')">编辑</button>';
+    h += '<button class="btn btn-danger rule-btn" onclick="deleteRule(' + i + ')">删除</button></div></td>';
     h += '</tr>';
   });
   h += '</tbody></table>';
   
   h += '<div class="rule-add-area">';
   h += '<div style="font-size:14px;font-weight:600;margin-bottom:12px">添加新规则</div>';
-  h += '<div style="display:flex;gap:8px;align-items:center">';
-  h += '<input id="new-item" placeholder="' + (file.kind==='ip'?'IP 或 CIDR':'正则表达式') + '" style="flex:1">';
+  h += '<div class="rule-add-row">';
+  h += '<input id="new-item" placeholder="' + (file.kind==='ip'?'IP 或 CIDR':'正则表达式') + '">';
   h += '<button class="btn btn-primary" onclick="addRule()">添加</button>';
   h += '</div></div>';
   
@@ -760,8 +773,8 @@ function editRule(idx){
   h += '<td>' + (r.Id||'') + '</td>';
   h += '<td>' + (r.RuleType||'') + '</td>';
   h += '<td><input id="edit-item" value="' + escapeHtml(r.RuleItem) + '" style="width:100%"></td>';
-  h += '<td><button class="btn btn-primary" style="padding:4px 8px;margin-right:4px" onclick="saveEdit(' + idx + ')">确定</button>';
-  h += '<button class="btn btn-secondary" style="padding:4px 8px" onclick="renderTable()">取消</button></td>';
+  h += '<td><div class="rule-actions"><button class="btn btn-primary rule-btn" onclick="saveEdit(' + idx + ')">确定</button>';
+  h += '<button class="btn btn-secondary rule-btn" onclick="renderTable()">取消</button></div></td>';
   
   tr.innerHTML = h;
 }
@@ -984,13 +997,19 @@ local function handle_api_config_save()
     end
 
     for k, v in pairs(data) do
-        config[k] = v
+        if k:sub(1, 2) ~= "__" then
+            config[k] = v
+        end
     end
+
+    local persisted = {}
+    for k, v in pairs(config) do persisted[k] = v end
+    for k, v in pairs(config_comments) do persisted[k] = v end
 
     local json_path = plugin_dir .. "/config.json"
     local f = io.open(json_path, "w")
     if not f then return json_response({success = false, message = "写入配置文件失败"}, 500) end
-    f:write(cjson.encode(config))
+    f:write(cjson.encode(persisted))
     f:close()
     return json_response({success = true, message = "配置已保存，重启 Nginx 后生效"})
 end

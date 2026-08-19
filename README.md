@@ -1,4 +1,6 @@
-# MA-WAF 萌绘WAF
+# MOEWAF
+
+**版本：1.2.0**
 
 基于 OpenResty/Lua 的轻量级 Web 应用防火墙，通过 WebUI 管理面板提供实时监控、规则编辑、配置管理、日志查看等功能。
 
@@ -17,7 +19,7 @@
 
 | 文件 | 说明 |
 | --- | --- |
-| `webui.lua` | WebUI 单文件插件（状态页 / 配置页 / 规则页 / 日志页 + 所有 API） |
+| `webui.lua` | WebUI 单文件插件（状态页 / 配置页 / 规则页 / 日志页及所有 API） |
 | `waf.lua` | WAF 核心逻辑（检测链） |
 | `access.lua` | access 阶段入口（一行 `waf.access()`） |
 | `init.lua` | init 阶段加载（`require("waf")` + 日志目录初始化） |
@@ -27,6 +29,8 @@
 | `config.json.example` | 配置模板（纳入 git） |
 | `rules/` | 规则文件目录（`*.rule`，不纳入 git） |
 | `logs/` | 日志目录（自动创建，不纳入 git） |
+| `tools/waf_selftest.py` | 受限的命令行 WAF 自测与 Markdown 报告工具 |
+| `reports/` | 自测报告输出目录（按需创建） |
 
 ## 依赖
 
@@ -44,7 +48,7 @@ cd /path/to/plugins/moewaf
 
 # 初始化配置
 cp config.json.example config.json
-# 编辑 config.json 修改密钥等配置（可选）
+# 编辑 config.json 修改配置
 
 # 初始化规则和日志目录
 mkdir -p rules logs
@@ -65,7 +69,7 @@ http {
 }
 ```
 
-### 3. 验证 & 启动
+### 3. 验证与启动
 
 ```bash
 nginx -t
@@ -74,11 +78,22 @@ nginx -s reload
 
 ### 4. 访问管理面板
 
-浏览器打开 `http://your-server:80/cgi-waf/status`
+浏览器打开 `http://your-server:80/cgi-waf/status`。
 
 首次访问需确认管理员 IP 在 `config.json` 的 `admin_whitelist` 中（默认 `127.0.0.1` 和 `::1`）。面板位于反向代理后时，需在 `admin_trusted_proxies` 中添加反代 IP。
 
 ## 配置说明（config.json）
+
+配置文件中的备注字段统一采用 `__大写NAME` 格式，并使用字符串保存备注内容，例如：
+
+```json
+{
+    "__WAF_ENABLE": "WAF 总开关",
+    "config_waf_enable": "on"
+}
+```
+
+程序加载配置时会自动忽略所有以 `__` 开头的备注字段；实际配置项不使用双下划线前缀。运行时配置与模板配置均已采用此格式。
 
 | 字段 | 默认值 | 说明 |
 | --- | --- | --- |
@@ -91,19 +106,44 @@ nginx -s reload
 | `config_cc_rate_ip` | `1000/600` | IP 限流：次数/秒数 |
 | `config_cc_rate_ipurl` | `20/60` | IP+URL 限流：次数/秒数 |
 | `admin_whitelist` | `["127.0.0.1","::1"]` | 管理面板白名单（留空=允许所有） |
-| `admin_trusted_proxies` | `[]` | 受信反代 IP（仅当 remote_addr 在此列表时解析 XFF） |
+| `admin_trusted_proxies` | `[]` | 受信反代 IP（仅当 `remote_addr` 在此列表时解析 XFF） |
 | `logging_skip_whitelist` | `on` | 白名单 IP 不记日志 |
 
 ## 日志文件
 
-- **业务日志**: `logs/waf_YYYY-MM-DD.log`（JSON 行，仅命中规则时产生）
-- **错误日志**: `logs/waf.error.log`（nginx error_log 输出，含 `admin: rejected` 审计行）
+- **业务日志**：`logs/waf_YYYY-MM-DD.log`（JSON 行，仅命中规则时产生）
+- **错误日志**：`logs/waf.error.log`（Nginx `error_log` 输出，含 `admin: rejected` 审计行）
 
 ## 管理面板安全
 
-- 默认仅允许 `127.0.0.1` / `::1` 访问
-- 未授权访问返回 404（nginx 风格页面），并在 error log 记录 WARN 审计行
-- 反向代理部署时：将反代 IP 加入 `admin_trusted_proxies`，管理员真实 IP 加入 `admin_whitelist`
+默认仅允许 `127.0.0.1` / `::1` 访问。未授权访问返回 404（Nginx 风格页面），并在 error log 记录 WARN 审计行。反向代理部署时，应将反代 IP 加入 `admin_trusted_proxies`，并将管理员真实 IP 加入 `admin_whitelist`。
+
+当前 WebUI 页面包括状态、配置、规则和日志四个模块，不再嵌入自测模块。规则页面采用统一的表格操作区和新增规则输入区，编辑、删除、确定和取消按钮会保持同一行的稳定布局。
+
+## WAF 自测与攻击面验证
+
+项目提供独立的 `tools/waf_selftest.py` 命令行工具，用于在**自有或已获明确授权的测试环境**中验证 WAF 检测链。工具默认只允许 loopback 目标；对非本机目标必须显式提供匹配的 `--allow-host` 并使用 `--confirm-authorized`。工具拒绝外部 URL、管理路径、重定向、并发压测、文件上传、命令执行、黑名单伪造和外部资产发现。
+
+默认用例覆盖 URL 参数、敏感路径 URL、请求头、Cookie、POST SQLi 与 POST XSS 六个检测面。HTTP 4xx、连接重置或对应统计项增量会被记录为拦截信号，但这不等同于漏洞不存在；报告使用者仍应结合 WAF 日志、Nginx 日志和业务路由确认拦截来源。
+
+```bash
+cd /path/to/plugins/moewaf
+python3 tools/waf_selftest.py \
+  --base-url http://127.0.0.1 \
+  --target-path /health \
+  --output reports/ma-waf-selftest.md
+```
+
+如果必须测试已授权的非 loopback 环境，应显式声明主机并确认授权：
+
+```bash
+python3 tools/waf_selftest.py \
+  --base-url https://waf-test.example.internal \
+  --allow-host waf-test.example.internal \
+  --confirm-authorized \
+  --target-path /health \
+  --output reports/ma-waf-selftest.md
+```
 
 ## 版权
 
