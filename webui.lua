@@ -6,7 +6,7 @@ local history_cache = require("history_cache")
 
 local _M = {}
 
-local VERSION = "1.3.2"
+local VERSION = "1.3.3"
 local PROJECT = "MA-WAF"
 local BRAND_COLOR = "#3b82f6"
 

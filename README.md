@@ -1,6 +1,6 @@
 # MOEWAF
 
-**版本：1.3.2**
+**版本：1.3.3**
 
 基于 OpenResty/Lua 的轻量级 Web 应用防火墙，通过 WebUI 管理面板提供实时监控、规则编辑、配置管理、日志查看等功能。
 
@@ -128,7 +128,7 @@ status 页的历史统计接口使用 `history_cache.lua` 将每个日期的日�
 
 统计摘要包含攻击总数、白名单命中数、攻击类型、Top IP 和 Top URL。IP/URL 维度最多保留 50000 个键，返回仍只保留 Top 10。缓存文件使用临时文件写入并原子替换，缓存目录不会被日志浏览接口列出。
 
-第一次对既有超大日志建立缓存仍需要扫描一次；缓存建立后，status 接口只需读取小型 JSON 摘要。若需要手动重建，可删除对应日期的 `logs/.history_stats/waf_YYYY-MM-DD.json` 或范围缓存文件，下一次请求会自动重建。
+第一次对既有超大日志建立缓存仍需要扫描一次；缓存建立后，status 接口只需读取小型 JSON 摘要。缓存模块会在第一次建立摘要时自动创建 `logs/.history_stats/`，Linux 使用 `mkdir -p`，Windows 使用系统 `mkdir`，不要求手工创建目录。若需要手动重建，可删除对应日期的 `logs/.history_stats/waf_YYYY-MM-DD.json` 或范围缓存文件，下一次请求会自动重建。
 
 ## WAF 自测与攻击面验证
 

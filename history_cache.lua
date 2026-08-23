@@ -7,6 +7,8 @@ local CACHE_VERSION = 1
 local MAX_DIMENSION_KEYS = 50000
 local TOP_N = 10
 local memory_cache = {}
+local IS_WINDOWS = (package and package.config and package.config:sub(1, 1) == "\\")
+    or (jit and jit.os == "Windows")
 
 local function empty_summary(date, source_exists, source_size)
     return {
@@ -38,6 +40,10 @@ local function shell_quote(value)
     return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
 end
 
+local function windows_quote(value)
+    return '"' .. tostring(value):gsub('"', '""') .. '"'
+end
+
 local function ensure_dir(path)
     local probe = io.open(path .. "/.probe", "a")
     if probe then
@@ -45,7 +51,11 @@ local function ensure_dir(path)
         os.remove(path .. "/.probe")
         return true
     end
-    os.execute("mkdir -p " .. shell_quote(path))
+    if IS_WINDOWS then
+        os.execute("if not exist " .. windows_quote(path) .. " mkdir " .. windows_quote(path))
+    else
+        os.execute("mkdir -p -- " .. shell_quote(path))
+    end
     local check = io.open(path .. "/.probe", "a")
     if not check then return false end
     check:close()
@@ -106,6 +116,11 @@ local function write_cache(path, summary)
     f:write(encoded)
     f:close()
     local renamed = os.rename(tmp_path, path)
+    if not renamed and IS_WINDOWS then
+        -- Windows CRT rename cannot replace an existing file.
+        os.remove(path)
+        renamed = os.rename(tmp_path, path)
+    end
     if not renamed then
         os.remove(tmp_path)
         return false
