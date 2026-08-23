@@ -1,6 +1,6 @@
 # MOEWAF
 
-**版本：1.2.0**
+**版本：1.3.2**
 
 基于 OpenResty/Lua 的轻量级 Web 应用防火墙，通过 WebUI 管理面板提供实时监控、规则编辑、配置管理、日志查看等功能。
 
@@ -20,6 +20,7 @@
 | 文件 | 说明 |
 | --- | --- |
 | `webui.lua` | WebUI 单文件插件（状态页 / 配置页 / 规则页 / 日志页及所有 API） |
+| `history_cache.lua` | 按日期和查询范围持久化历史统计摘要，供 status 接口快速读取 |
 | `waf.lua` | WAF 核心逻辑（检测链） |
 | `access.lua` | access 阶段入口（一行 `waf.access()`） |
 | `init.lua` | init 阶段加载（`require("waf")` + 日志目录初始化） |
@@ -29,6 +30,7 @@
 | `config.json.example` | 配置模板（纳入 git） |
 | `rules/` | 规则文件目录（`*.rule`，不纳入 git） |
 | `logs/` | 日志目录（自动创建，不纳入 git） |
+| `logs/.history_stats/` | 历史统计缓存目录（自动创建，不纳入 git） |
 | `tools/waf_selftest.py` | 受限的命令行 WAF 自测与 Markdown 报告工具 |
 | `reports/` | 自测报告输出目录（按需创建） |
 
@@ -119,6 +121,14 @@ nginx -s reload
 默认仅允许 `127.0.0.1` / `::1` 访问。未授权访问返回 404（Nginx 风格页面），并在 error log 记录 WARN 审计行。反向代理部署时，应将反代 IP 加入 `admin_trusted_proxies`，并将管理员真实 IP 加入 `admin_whitelist`。
 
 当前 WebUI 页面包括状态、配置、规则和日志四个模块，不再嵌入自测模块。规则页面采用统一的表格操作区和新增规则输入区，编辑、删除、确定和取消按钮会保持同一行的稳定布局。
+
+## 历史统计性能与缓存
+
+status 页的历史统计接口使用 `history_cache.lua` 将每个日期的日志聚合结果写入 `logs/.history_stats/waf_YYYY-MM-DD.json`，并按查询天数维护 `range_1.json`、`range_7.json` 等范围摘要。接口请求优先读取范围统计文件；对于过去日期，命中缓存时不会打开或读取原始日志，也不会重新逐行 JSON 解析。首次发现某个日志文件时会建立摘要；当天日志仅追加时只解析新增部分；日志轮转、截断、缓存损坏或缓存版本变化时才会重建相关摘要。
+
+统计摘要包含攻击总数、白名单命中数、攻击类型、Top IP 和 Top URL。IP/URL 维度最多保留 50000 个键，返回仍只保留 Top 10。缓存文件使用临时文件写入并原子替换，缓存目录不会被日志浏览接口列出。
+
+第一次对既有超大日志建立缓存仍需要扫描一次；缓存建立后，status 接口只需读取小型 JSON 摘要。若需要手动重建，可删除对应日期的 `logs/.history_stats/waf_YYYY-MM-DD.json` 或范围缓存文件，下一次请求会自动重建。
 
 ## WAF 自测与攻击面验证
 

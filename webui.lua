@@ -2,10 +2,11 @@ local cjson = require("cjson")
 local io = require("io")
 local waf = require("waf")
 local iputils = require("iputils")
+local history_cache = require("history_cache")
 
 local _M = {}
 
-local VERSION = "1.2.0"
+local VERSION = "1.3.2"
 local PROJECT = "MA-WAF"
 local BRAND_COLOR = "#3b82f6"
 
@@ -325,7 +326,7 @@ local STATUS_HTML = [[<!DOCTYPE html>
     <div class="detail-grid" id="sys-info"></div>
   </div>
   <div class="section" id="history-section" style="margin-top:24px;border-top:2px solid var(--border);padding-top:24px">
-    <h3 style="margin-bottom:12px">历史统计 <span style="font-size:12px;color:var(--text2);font-weight:normal">来自日志文件</span></h3>
+    <h3 style="margin-bottom:12px">历史统计 <span style="font-size:12px;color:var(--text2);font-weight:normal">来自统计缓存</span></h3>
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
       <button class="btn btn-secondary hist-btn" data-days="1">今天</button>
       <button class="btn btn-primary hist-btn" data-days="7">近 7 天</button>
@@ -1240,85 +1241,9 @@ end
 local function handle_api_history()
     local days = tonumber(ngx.var.arg_days) or 7
     days = math.min(math.max(days, 1), 31)
-    local log_dir = plugin_dir .. "/logs"
-    local now = os.time()
-    local day_results = {}
-    local totals_attacks = 0
-    local totals_by_method = {}
-    local totals_ip_count = {}
-    local totals_url_count = {}
-    for i = days - 1, 0, -1 do
-        local t = now - i * 86400
-        local fname = string.format("waf_%s.log", os.date("%Y-%m-%d", t))
-        local fpath = log_dir .. "/" .. fname
-        local f = io.open(fpath, "r")
-        local day_obj = {date = os.date("%Y-%m-%d", t), found = false,
-                         attacks = 0, whitelist_hits = 0,
-                         by_method = {}, top_ips = {}}
-        if f then
-            day_obj.found = true
-            local ip_count = {}
-            local data = f:read("*a")
-            f:close()
-            if data and data ~= "" then
-                for line in (data .. "\n"):gmatch("(.-)\n") do
-                    if line ~= "" then
-                        local ok, obj = pcall(cjson.decode, line)
-                        if ok and type(obj) == "table" then
-                            local method = obj.attack_method or "Unknown"
-                            if method == "White_IP" then
-                                day_obj.whitelist_hits = day_obj.whitelist_hits + 1
-                            else
-                                day_obj.attacks = day_obj.attacks + 1
-                                day_obj.by_method[method] = (day_obj.by_method[method] or 0) + 1
-                                local ip = obj.client_ip or ""
-                                if ip ~= "" then ip_count[ip] = (ip_count[ip] or 0) + 1 end
-                                local url = obj.req_url or ""
-                                if url ~= "" then totals_url_count[url] = (totals_url_count[url] or 0) + 1 end
-                            end
-                        end
-                    end
-                end
-            end
-            local sorted_ips = {}
-            for ip, cnt in pairs(ip_count) do sorted_ips[#sorted_ips+1] = {ip, cnt} end
-            table.sort(sorted_ips, function(a,b) return a[2] > b[2] end)
-            local top_n = {}
-            for j = 1, math.min(10, #sorted_ips) do top_n[j] = sorted_ips[j] end
-            day_obj.top_ips = top_n
-            totals_attacks = totals_attacks + day_obj.attacks
-            for m, c in pairs(day_obj.by_method) do
-                totals_by_method[m] = (totals_by_method[m] or 0) + c
-            end
-            for ip, c in pairs(ip_count) do
-                totals_ip_count[ip] = (totals_ip_count[ip] or 0) + c
-            end
-        end
-        day_results[#day_results+1] = day_obj
-    end
-    local sorted_totals_ips = {}
-    for ip, cnt in pairs(totals_ip_count) do sorted_totals_ips[#sorted_totals_ips+1] = {ip, cnt} end
-    table.sort(sorted_totals_ips, function(a,b) return a[2] > b[2] end)
-    local top_totals_ips = {}
-    for j = 1, math.min(10, #sorted_totals_ips) do top_totals_ips[j] = sorted_totals_ips[j] end
-    local sorted_totals_urls = {}
-    for url, cnt in pairs(totals_url_count) do sorted_totals_urls[#sorted_totals_urls+1] = {url, cnt} end
-    table.sort(sorted_totals_urls, function(a,b) return a[2] > b[2] end)
-    local top_totals_urls = {}
-    for j = 1, math.min(10, #sorted_totals_urls) do top_totals_urls[j] = sorted_totals_urls[j] end
-    return json_response({
-        unit = "waf",
-        days = day_results,
-        totals = {
-            attacks = totals_attacks,
-            by_method = totals_by_method,
-            top_ips = top_totals_ips,
-            top_urls = top_totals_urls,
-            truncated = false
-        }
-    })
+    local summary = history_cache.load_range(days, plugin_dir .. "/logs", os.time())
+    return json_response(summary)
 end
-
 function _M.run()
     local uri = ngx.var.uri
 

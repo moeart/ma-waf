@@ -2,3 +2,4 @@ config.lua
 config.json
 /rules/*.rule
 /logs/*.log
+/logs/.history_stats/
