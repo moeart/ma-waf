@@ -47,9 +47,4 @@ if ngx.var.uri:sub(1, 8) == "/cgi-rfw" then
     return ngx.exit(500)
 end
 
--- vhost 可用 set $waf_on 0; 单独关闭（未设置时保持开启）
-local waf_on = nil
-pcall(function() waf_on = ngx.var.waf_on end)
-if waf_on ~= "0" then
-    waf.check()
-end
+waf.check()

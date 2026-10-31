@@ -451,6 +451,9 @@ function _M.check()
         return ngx.exit(500)
     end
 
+    -- vhost 可用 set $waf_on 0; 单独关闭（与 $rfw_on 相同约定，未设置时保持开启）
+    if (ngx.var.waf_on or "") == "0" then return end
+
     _M.system_share_info_incr("firewall_req_total")
     if _M.white_ip_check() then
     elseif _M.white_url_check() then

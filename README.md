@@ -72,7 +72,8 @@ http {
 ```
 
 单个 `server` 需要跳过 WAF（例如只监听 `127.0.0.1` 的本机反代入口）时，在 `server` 块里加
-`set $waf_on 0;`；不设置该变量时仍然执行 `waf.check()`。
+`set $waf_on 0;`；判定在 `waf.lua` 的 `check()` 内完成（与 `$rfw_on` 同一约定），
+`access.lua` 仍只保留一行 `waf.check()`，不设置该变量时照常检测。
 
 ### 3. 验证与启动
 
